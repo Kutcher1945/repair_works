@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="500" viewBox="0 0 1600 500" fill="none">
+  <defs>
+    <linearGradient id="techAccent" x1="120" y1="80" x2="560" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.72" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#7DD3FC"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Transparent background -->
+
+  <!-- Futuristic construction / digital building mark -->
+  <g transform="translate(70 44)" stroke="url(#techAccent)" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)">
+    <!-- Main architectural silhouette -->
+    <path d="M58 360H430" stroke-width="14"/>
+    <path d="M105 360V235L190 180V360" stroke-width="14"/>
+    <path d="M190 360V85L282 35V360" stroke-width="14"/>
+    <path d="M282 360V172L365 218V360" stroke-width="14"/>
+    <path d="M190 180L282 132L365 218" stroke-width="12"/>
+    <path d="M190 85L282 132" stroke-width="12"/>
+
+    <!-- Inner structural lines -->
+    <path d="M138 338V256L168 237V338" stroke-width="8"/>
+    <path d="M225 338V151L255 135V338" stroke-width="8"/>
+    <path d="M315 338V221L340 235V338" stroke-width="8"/>
+
+    <!-- Circuit / BIM nodes -->
+    <g stroke="#7DD3FC" stroke-width="4" opacity="0.95">
+      <path d="M72 284H104"/>
+      <path d="M282 62V24"/>
+      <path d="M365 250H412"/>
+      <path d="M224 210H188"/>
+      <path d="M326 175V140H390"/>
+      <circle cx="67" cy="284" r="6" fill="#7DD3FC" stroke="none"/>
+      <circle cx="282" cy="18" r="6" fill="#7DD3FC" stroke="none"/>
+      <circle cx="420" cy="250" r="6" fill="#7DD3FC" stroke="none"/>
+      <circle cx="182" cy="210" r="6" fill="#7DD3FC" stroke="none"/>
+      <circle cx="398" cy="140" r="6" fill="#7DD3FC" stroke="none"/>
+    </g>
+
+    <!-- Digital grid details -->
+    <g stroke="#7DD3FC" stroke-width="2" opacity="0.55" filter="none">
+      <path d="M91 105H155" stroke-dasharray="5 9"/>
+      <path d="M91 122H155" stroke-dasharray="5 9"/>
+      <path d="M405 292H462" stroke-dasharray="5 9"/>
+      <path d="M405 309H462" stroke-dasharray="5 9"/>
+      <path d="M44 329V370" stroke-dasharray="5 9"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <g fill="#FFFFFF">
+    <text x="590" y="238"
+          font-family="Montserrat, Arial, sans-serif"
+          font-size="112"
+          font-weight="800"
+          letter-spacing="2">РЕМОНТНЫЕ</text>
+    <text x="590" y="363"
+          font-family="Montserrat, Arial, sans-serif"
+          font-size="112"
+          font-weight="800"
+          letter-spacing="2">РАБОТЫ</text>
+  </g>
+
+  <!-- Underline / digital accent -->
+  <g stroke="#7DD3FC" stroke-linecap="round">
+    <path d="M592 405H1160" stroke-width="5" opacity="0.92"/>
+    <path d="M1178 405H1228" stroke-width="5" opacity="0.55" stroke-dasharray="8 12"/>
+    <circle cx="1245" cy="405" r="6" fill="#7DD3FC" stroke="none"/>
+  </g>
+</svg>
