@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch, apiUploadForm } from "../../../../lib/auth";
+import type { DrawnGeometry } from "../../../_components/DrawMap";
+import { useUnsavedChanges, UnsavedChangesModal } from "../../../_components/UnsavedChangesGuard";
+
+const DrawMap = dynamic(() => import("../../../_components/DrawMap"), { ssr: false });
 
 type District = { id: number; name_ru?: string | null; name_kz?: string | null; name?: string | null };
 
@@ -21,6 +26,7 @@ type RepairRequest = {
   planned_end_date: string;
   has_traffic_restriction: boolean;
   traffic_restriction_description?: string | null;
+  geometry?: DrawnGeometry | null;
   status: string;
   documents: ExistingDoc[];
   photos: ExistingPhoto[];
@@ -36,6 +42,7 @@ type FormState = {
   planned_end_date: string;
   has_traffic_restriction: boolean;
   traffic_restriction_description: string;
+  geometry: DrawnGeometry | null;
 };
 
 const EDITABLE_STATUSES = ["draft", "needs_revision"];
@@ -140,6 +147,7 @@ export default function EditRepairPage() {
     planned_end_date: "",
     has_traffic_restriction: false,
     traffic_restriction_description: "",
+    geometry: null,
   });
 
   const [newDocFiles, setNewDocFiles] = useState<File[]>([]);
@@ -148,6 +156,8 @@ export default function EditRepairPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitStep, setSubmitStep] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const { showModal, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -176,6 +186,7 @@ export default function EditRepairPage() {
           planned_end_date: req.planned_end_date,
           has_traffic_restriction: req.has_traffic_restriction,
           traffic_restriction_description: req.traffic_restriction_description ?? "",
+          geometry: req.geometry ?? null,
         });
 
         setCurrentStatus(req.status);
@@ -191,6 +202,7 @@ export default function EditRepairPage() {
   }, [id]);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setIsDirty(true);
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -210,7 +222,9 @@ export default function EditRepairPage() {
       setError("Дата окончания не может быть раньше даты начала");
       return;
     }
+    if (!form.geometry) { setError("Нарисуйте геометрию участка на карте"); return; }
 
+    setIsDirty(false);
     setSubmitting(true);
     try {
       setSubmitStep("Сохранение изменений…");
@@ -228,6 +242,7 @@ export default function EditRepairPage() {
           traffic_restriction_description: form.has_traffic_restriction
             ? form.traffic_restriction_description.trim()
             : "",
+          geometry: form.geometry,
         }),
       });
 
@@ -388,6 +403,35 @@ export default function EditRepairPage() {
             <FieldRow label="Участок дороги">
               <input type="text" className={INPUT} placeholder="от пр. Достык до ул. Фурманова" value={form.road_section} onChange={(e) => set("road_section", e.target.value)} disabled={disabled} maxLength={500} />
             </FieldRow>
+
+            {/* Map */}
+            <div>
+              <label className="block text-sm font-medium text-[#344054] mb-1.5">
+                Геометрия участка
+                <span className="text-[#D92D20] ml-0.5">*</span>
+              </label>
+              <DrawMap
+                value={form.geometry}
+                onChange={(g) => set("geometry", g)}
+                disabled={disabled}
+              />
+              {form.geometry && (
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-xs text-[#027A48]">
+                    ✓ {form.geometry.type === "LineString" ? "Линия сохранена" : form.geometry.type === "Polygon" ? "Полигон сохранён" : "Точка сохранена"}
+                  </p>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => set("geometry", null)}
+                      className="text-xs text-[#D92D20] hover:underline"
+                    >
+                      Очистить
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -430,7 +474,6 @@ export default function EditRepairPage() {
         <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-6">
           <SectionLabel num={5} title="Договор и документы" />
 
-          {/* Existing docs */}
           {existingDocs.length > 0 && (
             <div className="space-y-2 mb-4">
               {existingDocs.map((doc) => {
@@ -453,7 +496,6 @@ export default function EditRepairPage() {
             </div>
           )}
 
-          {/* New document uploads */}
           {!readOnly && (
             <>
               <input
@@ -491,7 +533,6 @@ export default function EditRepairPage() {
         <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-6">
           <SectionLabel num={6} title="Фотофиксация (до начала работ)" />
 
-          {/* Existing photos */}
           {existingPhotos.length > 0 && (
             <div className="grid grid-cols-4 gap-3 mb-4">
               {existingPhotos.map((photo) => {
@@ -511,7 +552,6 @@ export default function EditRepairPage() {
             </div>
           )}
 
-          {/* New photos */}
           {!readOnly && (
             <>
               <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { setNewPhotoFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])]); }} />
@@ -574,6 +614,13 @@ export default function EditRepairPage() {
         </div>
 
       </form>
+
+      <UnsavedChangesModal
+        show={showModal}
+        mode="edit"
+        onConfirm={confirmLeave}
+        onCancel={cancelLeave}
+      />
     </div>
   );
 }

@@ -55,6 +55,16 @@ function ChartIcon() {
   );
 }
 
+function UsersIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 function GearIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -140,12 +150,13 @@ function LogoMark() {
 /* ── Nav config ───────────────────────────────────────────────────── */
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Главная",           icon: HomeIcon,         exact: true  },
-  { href: "/dashboard/repairs", label: "Ремонтные работы", icon: ConstructionIcon, exact: false },
-  { href: "/dashboard/map",     label: "Карта",              icon: MapIcon,          exact: false },
-  { href: "/dashboard/reports", label: "Отчёты",             icon: ChartIcon,        exact: false },
-  { href: "/dashboard/settings",label: "Настройки",          icon: GearIcon,         exact: false },
-] as const;
+  { href: "/dashboard",          label: "Главная",           icon: HomeIcon,         exact: true,  adminOnly: false },
+  { href: "/dashboard/repairs",  label: "Ремонтные работы", icon: ConstructionIcon, exact: false, adminOnly: false },
+  { href: "/dashboard/users",    label: "Пользователи",     icon: UsersIcon,        exact: false, adminOnly: true  },
+  { href: "/dashboard/map",      label: "Карта",             icon: MapIcon,          exact: false, adminOnly: false },
+  { href: "/dashboard/reports",  label: "Отчёты",            icon: ChartIcon,        exact: false, adminOnly: false },
+  { href: "/dashboard/settings", label: "Настройки",         icon: GearIcon,         exact: false, adminOnly: false },
+];
 
 /* ── Layout ───────────────────────────────────────────────────────── */
 
@@ -290,7 +301,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
           )}
           <ul className="space-y-2" style={{ padding: "0 8px" }}>
-            {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
+            {NAV_ITEMS.filter(({ adminOnly }) => !adminOnly || user.role === "admin").map(({ href, label, icon: Icon, exact }) => {
               const isActive = exact ? pathname === href : pathname.startsWith(href);
               return (
                 <li key={href}>

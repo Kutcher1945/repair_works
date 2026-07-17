@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "../../../lib/auth";
+import type { User } from "../../../lib/auth";
+import type { DrawnGeometry } from "../../_components/DrawMap";
+
+const DrawMap = dynamic(() => import("../../_components/DrawMap"), { ssr: false });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -88,6 +93,7 @@ type RepairRequest = {
   is_work_finished: boolean;
   actual_end_date?: string | null;
   completion_comment?: string | null;
+  geometry?: DrawnGeometry | null;
   status: string;
   is_available_on_map: boolean;
   approved_at?: string | null;
@@ -169,14 +175,23 @@ export default function RepairDetailPage() {
   const id = params?.id as string;
 
   const [request, setRequest] = useState<RepairRequest | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
+  const [statusAction, setStatusAction] = useState<string | null>(null);
+  const [statusComment, setStatusComment] = useState("");
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!id) return;
-    apiFetch<RepairRequest>(`/api/v1/road-repair/requests/${id}/`)
-      .then(setRequest)
+    Promise.all([
+      apiFetch<RepairRequest>(`/api/v1/road-repair/requests/${id}/`),
+      apiFetch<User>("/api/v1/common/auth/me/"),
+    ])
+      .then(([req, me]) => { setRequest(req); setCurrentUser(me); })
       .catch((e: unknown) => {
         const msg = e instanceof Error ? e.message : "Ошибка загрузки";
         if (msg.includes("404") || msg.includes("HTTP 404")) {
@@ -187,6 +202,27 @@ export default function RepairDetailPage() {
       })
       .finally(() => setIsLoading(false));
   }, [id]);
+
+  async function changeStatus(newStatus: string) {
+    if (!request) return;
+    setStatusLoading(true);
+    setStatusError(null);
+    try {
+      const body: Record<string, string> = { status: newStatus };
+      if (statusComment.trim()) body.comment = statusComment.trim();
+      const updated = await apiFetch<RepairRequest>(`/api/v1/road-repair/requests/${id}/change_status/`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      setRequest(updated);
+      setStatusAction(null);
+      setStatusComment("");
+    } catch (e: unknown) {
+      setStatusError(e instanceof Error ? e.message : "Ошибка при смене статуса");
+    } finally {
+      setStatusLoading(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -287,6 +323,19 @@ export default function RepairDetailPage() {
             <Field label="Район" value={resolveDistrictName(request.district)} />
             <Field label="Адрес" value={request.address} />
             <Field label="Участок дороги" value={request.road_section || "—"} />
+          </SectionCard>
+
+          {/* Geometry map */}
+          <SectionCard title="Геометрия участка">
+            {request.geometry ? (
+              <DrawMap
+                value={request.geometry}
+                onChange={() => {}}
+                disabled
+              />
+            ) : (
+              <p className="text-sm text-[#98A2B3] py-2">Геометрия не указана</p>
+            )}
           </SectionCard>
 
           {/* Traffic */}
@@ -445,6 +494,97 @@ export default function RepairDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Status management */}
+          {(() => {
+            const isAdmin = currentUser?.role === "admin" || currentUser?.role === undefined;
+            const actions: { label: string; status: string; style: string; needsComment?: boolean }[] = [];
+
+            if (isAdmin) {
+              if (request.status === "draft") {
+                actions.push({ label: "Отправить на проверку", status: "pending_review", style: "bg-[#12345B] text-white hover:bg-[#0A223D]" });
+                actions.push({ label: "Аннулировать", status: "cancelled", style: "border border-[#D92D20] text-[#D92D20] hover:bg-[#FFF2F2]", needsComment: true });
+              }
+              if (request.status === "pending_review") {
+                actions.push({ label: "Одобрить", status: "active", style: "bg-[#027A48] text-white hover:bg-[#015c36]" });
+                actions.push({ label: "На доработку", status: "needs_revision", style: "border border-[#F59E42] text-[#B76E00] hover:bg-[#FFFBF0]", needsComment: true });
+                actions.push({ label: "Аннулировать", status: "cancelled", style: "border border-[#D92D20] text-[#D92D20] hover:bg-[#FFF2F2]", needsComment: true });
+              }
+              if (request.status === "needs_revision") {
+                actions.push({ label: "Одобрить", status: "active", style: "bg-[#027A48] text-white hover:bg-[#015c36]" });
+                actions.push({ label: "Аннулировать", status: "cancelled", style: "border border-[#D92D20] text-[#D92D20] hover:bg-[#FFF2F2]", needsComment: true });
+              }
+              if (request.status === "active") {
+                actions.push({ label: "Завершить", status: "completed", style: "bg-[#12345B] text-white hover:bg-[#0A223D]", needsComment: true });
+                actions.push({ label: "Аннулировать", status: "cancelled", style: "border border-[#D92D20] text-[#D92D20] hover:bg-[#FFF2F2]", needsComment: true });
+              }
+            } else {
+              // employee: can only submit their draft for review
+              if (request.status === "draft") {
+                actions.push({ label: "Отправить на проверку", status: "pending_review", style: "bg-[#12345B] text-white hover:bg-[#0A223D]" });
+              }
+            }
+
+            if (!actions.length) return null;
+
+            const activeAction = actions.find((a) => a.status === statusAction);
+
+            return (
+              <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-4 space-y-2.5">
+                <p className="text-xs font-semibold text-[#667085] uppercase tracking-wide">Управление</p>
+
+                {!statusAction ? (
+                  <div className="flex flex-col gap-2">
+                    {actions.map((a) => (
+                      <button
+                        key={a.status}
+                        type="button"
+                        onClick={() => { setStatusError(null); setStatusComment(""); setStatusAction(a.status); }}
+                        className={`w-full h-9 px-3 rounded-[6px] text-sm font-medium transition-colors ${a.style}`}
+                      >
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    <p className="text-sm text-[#344054] font-medium">{activeAction?.label}</p>
+                    {activeAction?.needsComment && (
+                      <textarea
+                        className="w-full px-3 py-2 rounded-[6px] border border-[#D9E0E8] text-sm text-[#1D2939] placeholder:text-[#98A2B3] outline-none focus:border-[#2F80C9] focus:ring-2 focus:ring-[#2F80C9]/20 resize-none"
+                        rows={3}
+                        placeholder="Комментарий (необязательно)…"
+                        value={statusComment}
+                        onChange={(e) => setStatusComment(e.target.value)}
+                        disabled={statusLoading}
+                      />
+                    )}
+                    {statusError && (
+                      <p className="text-xs text-[#D92D20]">{statusError}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => changeStatus(statusAction)}
+                        disabled={statusLoading}
+                        className={`flex-1 h-9 px-3 rounded-[6px] text-sm font-medium transition-colors disabled:opacity-60 ${activeAction?.style}`}
+                      >
+                        {statusLoading ? "…" : "Подтвердить"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setStatusAction(null); setStatusComment(""); setStatusError(null); }}
+                        disabled={statusLoading}
+                        className="h-9 px-3 rounded-[6px] border border-[#D9E0E8] text-sm text-[#667085] hover:bg-[#F7F9FC] transition-colors"
+                      >
+                        Отмена
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Dates card */}
           <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-4 space-y-3">

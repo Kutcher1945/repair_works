@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { apiFetch } from "../../lib/auth";
 
@@ -19,10 +20,11 @@ type RepairRequest = {
   days_overdue: number | null;
   district?: number | { id: number; name_ru?: string | null } | null;
   created_at: string;
+  is_deleted?: boolean;
 };
 
 type District = { id: number; name_ru?: string | null; name_kz?: string | null; name?: string | null };
-type TabId = "all" | "attention" | "expiring" | "overdue" | "completed";
+type TabId = "all" | "attention" | "expiring" | "overdue" | "completed" | "deleted";
 type PhotoItem = { id: number; phase: string; image: string; description?: string | null };
 type Preview = { id: number; x: number; y: number };
 
@@ -78,27 +80,25 @@ function districtId(d: RepairRequest["district"]): string {
 }
 
 function tabFilter(req: RepairRequest, tab: TabId) {
-  if (tab === "all") return true;
+  if (tab === "deleted") return req.is_deleted === true;
+  if (req.is_deleted) return false;
 
-  // Заявки, которые вернули на доработку от ЦОДД
+  if (tab === "all") return true;
   if (tab === "attention") return req.status === "needs_revision";
 
   const terminal = req.status === "completed" || req.status === "cancelled";
 
-  // Плановая дата окончания ≤ 7 дней и ещё не истекла
   if (tab === "expiring") {
     if (terminal) return false;
     const { remaining, isOver } = getDaysInfo(req);
     return !isOver && remaining <= 7;
   }
 
-  // Плановая дата окончания уже истекла
   if (tab === "overdue") {
     if (terminal) return false;
     return getDaysInfo(req).isOver;
   }
 
-  // Архив: завершённые и аннулированные
   if (tab === "completed") return terminal;
 
   return true;
@@ -145,6 +145,12 @@ function ChevRight() {
 function SpinnerIcon() {
   return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="animate-spin" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>;
 }
+function TrashIcon() {
+  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+function RestoreIcon() {
+  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 3v5h5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
 
 /* ── Page ────────────────────────────────────────────────────────── */
 const PAGE_SIZES = [10, 20, 50];
@@ -157,23 +163,25 @@ export default function RepairsListPage() {
 
   const [activeTab, setActiveTab] = useState<TabId>("all");
 
-  /* pending (typed but not applied) */
-  const [pSearch, setPSearch]     = useState("");
-  const [pStatus, setPStatus]     = useState("");
-  const [pDistrict, setPDistrict] = useState("");
-  const [pFrom, setPFrom]         = useState("");
-  const [pTo, setPTo]             = useState("");
+  /* panel filters */
+  const [fTitle,     setFTitle]     = useState("");
+  const [fStatus,    setFStatus]    = useState("");
+  const [fDistrict,  setFDistrict]  = useState("");
+  const [fStartFrom, setFStartFrom] = useState("");
+  const [fEndTo,     setFEndTo]     = useState("");
 
-  /* applied */
-  const [aSearch, setASearch]     = useState("");
-  const [aStatus, setAStatus]     = useState("");
-  const [aDistrict, setADistrict] = useState("");
-  const [aFrom, setAFrom]         = useState("");
-  const [aTo, setATo]             = useState("");
+  /* column filters — separate state so they don't share DOM with panel */
+  const [cTitle,      setCTitle]      = useState("");
+  const [cAddress,    setCAddress]    = useState("");
+  const [cContractor, setCContractor] = useState("");
+  const [cStatus,     setCStatus]     = useState("");
+  const [cStart,      setCStart]      = useState("");
+  const [cEnd,        setCEnd]        = useState("");
 
   const [page, setPage]     = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [kebab, setKebab]   = useState<number | null>(null);
+  const [kebab, setKebab]       = useState<number | null>(null);
+  const [kebabPos, setKebabPos] = useState<{ x: number; y: number } | null>(null);
 
   /* hover preview */
   const [preview, setPreview]           = useState<Preview | null>(null);
@@ -181,15 +189,29 @@ export default function RepairsListPage() {
   const [photoLoading, setPhotoLoading] = useState<Record<number, boolean>>({});
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mousePos   = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const [confirmDelete, setConfirmDelete] = useState<RepairRequest | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
 
   useEffect(() => {
+    const toArr = <T,>(r: { results?: T[] } | T[]) =>
+      Array.isArray(r) ? r : (r as { results?: T[] }).results ?? [];
+
     Promise.all([
       apiFetch<{ results?: RepairRequest[] } | RepairRequest[]>("/api/v1/road-repair/requests/?page_size=1000"),
+      apiFetch<{ results?: RepairRequest[] } | RepairRequest[]>("/api/v1/road-repair/requests/?page_size=1000&is_deleted=true").catch(() => [] as RepairRequest[]),
       apiFetch<{ results?: District[] } | District[]>("/api/v1/repair-works/ref_district/"),
     ])
-      .then(([rd, dd]) => {
-        setAll(Array.isArray(rd) ? rd : (rd as { results?: RepairRequest[] }).results ?? []);
-        setDistricts(Array.isArray(dd) ? dd : (dd as { results?: District[] }).results ?? []);
+      .then(([rd, rdDel, dd]) => {
+        const active  = toArr(rd as { results?: RepairRequest[] } | RepairRequest[]);
+        const deleted = (Array.isArray(rdDel) ? rdDel : toArr(rdDel as { results?: RepairRequest[] } | RepairRequest[])).map(
+          (r) => ({ ...r, is_deleted: true })
+        );
+        const seen = new Set(active.map((r) => r.id));
+        const merged = [...active, ...deleted.filter((r) => !seen.has(r.id))];
+        setAll(merged);
+        setDistricts(toArr(dd as { results?: District[] } | District[]));
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Ошибка загрузки"))
       .finally(() => setLoading(false));
@@ -197,21 +219,23 @@ export default function RepairsListPage() {
 
   useEffect(() => {
     if (kebab === null) return;
-    const handler = () => setKebab(null);
+    const handler = () => { setKebab(null); setKebabPos(null); };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, [kebab]);
 
-  function showPreview(id: number, rect: DOMRect) {
+  function showPreview(id: number, e: React.MouseEvent) {
+    mousePos.current = { x: e.clientX, y: e.clientY };
     if (leaveTimer.current) clearTimeout(leaveTimer.current);
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => {
       const popW = 300;
-      const popH = 360;
-      const rightSpace = window.innerWidth - rect.right;
-      const x = rightSpace > popW + 24 ? rect.right + 12 : rect.left - popW - 12;
-      const y = Math.max(8, Math.min(rect.top + rect.height / 2 - popH / 2, window.innerHeight - popH - 8));
-      setPreview({ id, x, y });
+      const popH = 380;
+      const { x: mx, y: my } = mousePos.current;
+      const rightSpace = window.innerWidth - mx;
+      const x = rightSpace > popW + 24 ? mx + 18 : mx - popW - 18;
+      const y = Math.max(8, Math.min(my - popH / 2, window.innerHeight - popH - 8));
+      setPreview({ id, x: Math.max(8, x), y });
       fetchPhotos(id);
     }, 280);
   }
@@ -234,28 +258,70 @@ export default function RepairsListPage() {
     }
   }
 
-  function apply() {
-    setASearch(pSearch.trim()); setAStatus(pStatus); setADistrict(pDistrict);
-    setAFrom(pFrom); setATo(pTo); setPage(1);
+  async function softDelete(req: RepairRequest) {
+    setActionLoading(req.id);
+    try {
+      await apiFetch(`/api/v1/road-repair/requests/${req.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_deleted: true }),
+      });
+      setAll((prev) => prev.map((r) => r.id === req.id ? { ...r, is_deleted: true } : r));
+      setConfirmDelete(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Ошибка при удалении");
+    } finally {
+      setActionLoading(null);
+    }
   }
+
+  async function restoreRecord(id: number) {
+    setActionLoading(id);
+    try {
+      await apiFetch(`/api/v1/road-repair/requests/${id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_deleted: false }),
+      });
+      setAll((prev) => prev.map((r) => r.id === id ? { ...r, is_deleted: false } : r));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Ошибка при восстановлении");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   function reset() {
-    setPSearch(""); setASearch(""); setPStatus(""); setAStatus("");
-    setPDistrict(""); setADistrict(""); setPFrom(""); setAFrom("");
-    setPTo(""); setATo(""); setPage(1);
+    setFTitle(""); setFStatus(""); setFDistrict(""); setFStartFrom(""); setFEndTo("");
+    setCTitle(""); setCAddress(""); setCContractor(""); setCStatus(""); setCStart(""); setCEnd("");
+    setPage(1);
   }
+
+  const anyFilter = fTitle || fStatus || fDistrict || fStartFrom || fEndTo || cTitle || cAddress || cContractor || cStatus || cStart || cEnd;
 
   function tabCount(t: TabId) { return all.filter((r) => tabFilter(r, t)).length; }
 
   const tabFiltered = all.filter((r) => tabFilter(r, activeTab));
   const filtered = tabFiltered.filter((r) => {
-    if (aSearch) {
-      const q = aSearch.toLowerCase();
-      if (!r.title.toLowerCase().includes(q) && !r.address.toLowerCase().includes(q)) return false;
+    // panel global search
+    if (fTitle) {
+      const q = fTitle.toLowerCase();
+      if (
+        !r.title.toLowerCase().includes(q) &&
+        !(r.road_section ?? "").toLowerCase().includes(q) &&
+        !r.address.toLowerCase().includes(q) &&
+        !(r.contractor_name ?? "").toLowerCase().includes(q)
+      ) return false;
     }
-    if (aStatus && r.status !== aStatus) return false;
-    if (aDistrict && districtId(r.district) !== aDistrict) return false;
-    if (aFrom && r.planned_end_date < aFrom) return false;
-    if (aTo   && r.planned_start_date > aTo) return false;
+    if (fStatus   && r.status !== fStatus) return false;
+    if (fDistrict && districtId(r.district) !== fDistrict) return false;
+    if (fStartFrom && r.planned_start_date < fStartFrom) return false;
+    if (fEndTo     && r.planned_end_date   > fEndTo)     return false;
+    // column-specific filters
+    if (cTitle && !r.title.toLowerCase().includes(cTitle.toLowerCase()) && !(r.road_section ?? "").toLowerCase().includes(cTitle.toLowerCase())) return false;
+    if (cAddress    && !r.address.toLowerCase().includes(cAddress.toLowerCase())) return false;
+    if (cContractor && !(r.contractor_name ?? "").toLowerCase().includes(cContractor.toLowerCase())) return false;
+    if (cStatus && r.status !== cStatus) return false;
+    if (cStart && r.planned_start_date < cStart) return false;
+    if (cEnd   && r.planned_end_date   > cEnd)   return false;
     return true;
   });
 
@@ -263,12 +329,13 @@ export default function RepairsListPage() {
   const safePage   = Math.min(page, totalPages);
   const rows       = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-  const tabs: { id: TabId; label: string }[] = [
+  const tabs: { id: TabId; label: string; danger?: boolean }[] = [
     { id: "all",       label: "Все заявки" },
     { id: "attention", label: "Требуют внимания" },
     { id: "expiring",  label: "Срок завершается" },
     { id: "overdue",   label: "Просроченные" },
     { id: "completed", label: "Завершённые" },
+    { id: "deleted",   label: "Удалённые", danger: true },
   ];
 
   const dLabel = (d: District) => d.name_ru ?? d.name_kz ?? d.name ?? String(d.id);
@@ -298,14 +365,18 @@ export default function RepairsListPage() {
                 onClick={() => { setActiveTab(t.id); setPage(1); }}
                 className={[
                   "flex items-center gap-2 px-4 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-                  active ? "border-[#2F80C9] text-[#2F80C9]" : "border-transparent text-[#667085] hover:text-[#1D2939]",
+                  active
+                    ? t.danger ? "border-[#D92D20] text-[#D92D20]" : "border-[#2F80C9] text-[#2F80C9]"
+                    : "border-transparent text-[#667085] hover:text-[#1D2939]",
                 ].join(" ")}
               >
                 {t.label}
                 {cnt > 0 && (
                   <span className={[
                     "text-xs font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center",
-                    active ? "bg-[#2F80C9] text-white" : "bg-[#F2F4F7] text-[#667085]",
+                    active
+                      ? t.danger ? "bg-[#D92D20] text-white" : "bg-[#2F80C9] text-white"
+                      : t.danger ? "bg-[#FFF2F2] text-[#D92D20]" : "bg-[#F2F4F7] text-[#667085]",
                   ].join(" ")}>
                     {cnt}
                   </span>
@@ -315,7 +386,7 @@ export default function RepairsListPage() {
           })}
         </div>
 
-        {/* Filters */}
+        {/* Filter panel */}
         <div className="px-5 py-4 border-b border-[#D9E0E8]">
           <div className="flex flex-wrap gap-3 items-end">
             {/* Search */}
@@ -325,10 +396,9 @@ export default function RepairsListPage() {
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none"><SearchIcon /></span>
                 <input
                   type="text"
-                  placeholder="Поиск по названию, адресу, подрядчику"
-                  value={pSearch}
-                  onChange={(e) => setPSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && apply()}
+                  placeholder="Название, адрес, подрядчик…"
+                  value={fTitle}
+                  onChange={(e) => { setFTitle(e.target.value); setPage(1); }}
                   className={`${INPUT_CLS} w-full pl-9`}
                 />
               </div>
@@ -337,8 +407,8 @@ export default function RepairsListPage() {
             {/* Status */}
             <div className="w-44">
               <label className="block text-xs font-medium text-[#667085] mb-1.5">Статус</label>
-              <select value={pStatus} onChange={(e) => setPStatus(e.target.value)} className={INPUT_CLS + " w-full"}>
-                <option value="">Выберите статус</option>
+              <select value={fStatus} onChange={(e) => { setFStatus(e.target.value); setPage(1); }} className={INPUT_CLS + " w-full"}>
+                <option value="">Все статусы</option>
                 {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
@@ -346,8 +416,8 @@ export default function RepairsListPage() {
             {/* District */}
             <div className="w-44">
               <label className="block text-xs font-medium text-[#667085] mb-1.5">Район</label>
-              <select value={pDistrict} onChange={(e) => setPDistrict(e.target.value)} className={INPUT_CLS + " w-full"}>
-                <option value="">Выберите район</option>
+              <select value={fDistrict} onChange={(e) => { setFDistrict(e.target.value); setPage(1); }} className={INPUT_CLS + " w-full"}>
+                <option value="">Все районы</option>
                 {districts.map((d) => <option key={d.id} value={String(d.id)}>{dLabel(d)}</option>)}
               </select>
             </div>
@@ -356,32 +426,31 @@ export default function RepairsListPage() {
             <div>
               <label className="block text-xs font-medium text-[#667085] mb-1.5">Период работ</label>
               <div className="flex items-center gap-2">
-                <input type="date" value={pFrom} onChange={(e) => setPFrom(e.target.value)} className={INPUT_CLS} />
+                <input type="date" value={fStartFrom} onChange={(e) => { setFStartFrom(e.target.value); setPage(1); }} className={INPUT_CLS} />
                 <span className="text-[#98A2B3] text-sm select-none">—</span>
-                <input type="date" value={pTo} min={pFrom || undefined} onChange={(e) => setPTo(e.target.value)} className={INPUT_CLS} />
+                <input type="date" value={fEndTo} min={fStartFrom || undefined} onChange={(e) => { setFEndTo(e.target.value); setPage(1); }} className={INPUT_CLS} />
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={reset}
-                className="h-9 px-4 rounded-[6px] border border-[#D9E0E8] text-sm text-[#667085] hover:bg-[#F7F9FC] transition-colors flex items-center gap-1.5"
-              >
-                <ResetIcon /> Сбросить
-              </button>
-              <button
-                onClick={apply}
-                className="h-9 px-4 rounded-[6px] bg-[#2F80C9] text-white text-sm font-medium hover:bg-[#1E6BAD] transition-colors flex items-center gap-1.5"
-              >
-                <FilterIcon /> Применить фильтры
-              </button>
-            </div>
+            {/* Reset */}
+            <button
+              onClick={reset}
+              className="h-9 px-4 rounded-[6px] border border-[#D9E0E8] text-sm text-[#667085] hover:bg-[#F7F9FC] transition-colors flex items-center gap-1.5"
+            >
+              <ResetIcon /> Сбросить
+            </button>
           </div>
         </div>
 
         {/* Create button row */}
-        <div className="flex justify-end px-5 py-3 border-b border-[#D9E0E8]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#D9E0E8]">
+          {anyFilter ? (
+            <span className="text-xs text-[#667085]">
+              Найдено: <span className="font-semibold text-[#1D2939]">{filtered.length}</span> из {tabFiltered.length}
+            </span>
+          ) : (
+            <span />
+          )}
           <Link
             href="/dashboard/repairs/new"
             className="inline-flex items-center gap-2 h-9 px-4 rounded-[6px] bg-[#2F80C9] text-white text-sm font-medium hover:bg-[#1E6BAD] transition-colors"
@@ -402,36 +471,124 @@ export default function RepairsListPage() {
           </div>
         )}
 
-        {/* Empty */}
-        {!loading && !error && filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="mb-3 text-[#D9E0E8]" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M8 12h8M8 8h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-            <p className="text-sm font-medium text-[#667085]">Заявок не найдено</p>
-            <p className="text-xs text-[#98A2B3] mt-1">Попробуйте изменить фильтры или создайте новую заявку</p>
-          </div>
-        )}
-
-        {/* Table */}
-        {!loading && !error && filtered.length > 0 && (
+        {/* Table — always shown after load so column-filter headers stay visible */}
+        {!loading && !error && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="bg-[#F7F9FC] border-b border-[#D9E0E8] divide-x divide-[#D9E0E8]">
-                  <th className="text-left px-5 py-3 font-medium text-[#667085] text-xs whitespace-nowrap">№</th>
-                  <th className="text-left px-5 py-3 font-medium text-[#667085] text-xs whitespace-nowrap">Название заявки</th>
-                  <th className="text-left px-4 py-3 font-medium text-[#667085] text-xs whitespace-nowrap">Адрес участка</th>
-                  <th className="text-left px-4 py-3 font-medium text-[#667085] text-xs whitespace-nowrap">Подрядчик</th>
-                  <th className="text-left px-4 py-3 font-medium text-[#667085] text-xs whitespace-nowrap">Начало</th>
-                  <th className="text-left px-4 py-3 font-medium text-[#667085] text-xs whitespace-nowrap">Завершение</th>
-                  <th className="text-left px-4 py-3 font-medium text-[#667085] text-xs whitespace-nowrap">Статус</th>
-                  <th className="text-left px-4 py-3 font-medium text-[#667085] text-xs whitespace-nowrap">Осталось / Просрочка</th>
-                  <th className="text-center px-4 py-3 font-medium text-[#667085] text-xs whitespace-nowrap">Действия</th>
+                  {/* № */}
+                  <th className="text-left px-5 pt-3 pb-2 font-semibold text-[#667085] text-xs whitespace-nowrap align-top">
+                    №
+                  </th>
+
+                  {/* Название */}
+                  <th className="text-left px-5 pt-3 pb-2 font-semibold text-[#667085] text-xs align-top min-w-[180px]">
+                    <span className="block mb-1.5 whitespace-nowrap">Название заявки</span>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#C4CBD8] pointer-events-none"><SearchIcon /></span>
+                      <input
+                        type="text"
+                        placeholder="Поиск…"
+                        value={cTitle}
+                        onChange={(e) => { setCTitle(e.target.value); setPage(1); }}
+                        className="w-full h-7 pl-7 pr-2 rounded-[5px] border border-[#E4EAF2] bg-white text-xs text-[#1D2939] placeholder:text-[#C4CBD8] outline-none focus:border-[#2F80C9] focus:ring-1 focus:ring-[#2F80C9]/20 font-normal"
+                      />
+                    </div>
+                  </th>
+
+                  {/* Адрес */}
+                  <th className="text-left px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs align-top min-w-[160px]">
+                    <span className="block mb-1.5 whitespace-nowrap">Адрес участка</span>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#C4CBD8] pointer-events-none"><SearchIcon /></span>
+                      <input
+                        type="text"
+                        placeholder="Поиск…"
+                        value={cAddress}
+                        onChange={(e) => { setCAddress(e.target.value); setPage(1); }}
+                        className="w-full h-7 pl-7 pr-2 rounded-[5px] border border-[#E4EAF2] bg-white text-xs text-[#1D2939] placeholder:text-[#C4CBD8] outline-none focus:border-[#2F80C9] focus:ring-1 focus:ring-[#2F80C9]/20 font-normal"
+                      />
+                    </div>
+                  </th>
+
+                  {/* Подрядчик */}
+                  <th className="text-left px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs align-top min-w-[140px]">
+                    <span className="block mb-1.5 whitespace-nowrap">Подрядчик</span>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#C4CBD8] pointer-events-none"><SearchIcon /></span>
+                      <input
+                        type="text"
+                        placeholder="Поиск…"
+                        value={cContractor}
+                        onChange={(e) => { setCContractor(e.target.value); setPage(1); }}
+                        className="w-full h-7 pl-7 pr-2 rounded-[5px] border border-[#E4EAF2] bg-white text-xs text-[#1D2939] placeholder:text-[#C4CBD8] outline-none focus:border-[#2F80C9] focus:ring-1 focus:ring-[#2F80C9]/20 font-normal"
+                      />
+                    </div>
+                  </th>
+
+                  {/* Начало */}
+                  <th className="text-left px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs align-top">
+                    <span className="block mb-1.5 whitespace-nowrap">Начало</span>
+                    <input
+                      type="date"
+                      value={cStart}
+                      onChange={(e) => { setCStart(e.target.value); setPage(1); }}
+                      title="Начало не раньше"
+                      className="h-7 w-[130px] px-2 rounded-[5px] border border-[#E4EAF2] bg-white text-xs text-[#344054] outline-none focus:border-[#2F80C9] focus:ring-1 focus:ring-[#2F80C9]/20 font-normal"
+                    />
+                  </th>
+
+                  {/* Завершение */}
+                  <th className="text-left px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs align-top">
+                    <span className="block mb-1.5 whitespace-nowrap">Завершение</span>
+                    <input
+                      type="date"
+                      value={cEnd}
+                      min={cStart || undefined}
+                      onChange={(e) => { setCEnd(e.target.value); setPage(1); }}
+                      title="Завершение не позже"
+                      className="h-7 w-[130px] px-2 rounded-[5px] border border-[#E4EAF2] bg-white text-xs text-[#344054] outline-none focus:border-[#2F80C9] focus:ring-1 focus:ring-[#2F80C9]/20 font-normal"
+                    />
+                  </th>
+
+                  {/* Статус */}
+                  <th className="text-left px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs align-top">
+                    <span className="block mb-1.5 whitespace-nowrap">Статус</span>
+                    <select
+                      value={cStatus}
+                      onChange={(e) => { setCStatus(e.target.value); setPage(1); }}
+                      className="h-7 pl-2 pr-6 rounded-[5px] border border-[#E4EAF2] bg-white text-xs text-[#344054] outline-none focus:border-[#2F80C9] focus:ring-1 focus:ring-[#2F80C9]/20 font-normal appearance-none bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%2710%27 viewBox=%270 0 24 24%27 fill=%27none%27%3E%3Cpath d=%27M6 9l6 6 6-6%27 stroke=%27%23C4CBD8%27 stroke-width=%272.5%27 stroke-linecap=%27round%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_6px_center]"
+                    >
+                      <option value="">Все</option>
+                      {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </th>
+
+                  {/* Осталось */}
+                  <th className="text-left px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs whitespace-nowrap align-top">
+                    Осталось / Просрочка
+                  </th>
+
+                  {/* Действия */}
+                  <th className="text-center px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs whitespace-nowrap align-top">
+                    Действия
+                  </th>
                 </tr>
               </thead>
               <tbody>
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="py-16 text-center">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" className="mx-auto mb-3 text-[#D9E0E8]" aria-hidden="true">
+                        <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M8 12h8M8 8h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                      <p className="text-sm font-medium text-[#667085]">Заявок не найдено</p>
+                      <p className="text-xs text-[#98A2B3] mt-1">Попробуйте изменить фильтры или создайте новую заявку</p>
+                    </td>
+                  </tr>
+                )}
                 {rows.map((req, i) => {
                   const sc = STATUS_COLORS[req.status] ?? { bg: "#F2F4F7", text: "#667085" };
                   const isTerminal = req.status === "completed" || req.status === "cancelled";
@@ -441,19 +598,26 @@ export default function RepairsListPage() {
                     <tr
                       key={req.id}
                       className={[
-                        "border-b border-[#F2F4F7] hover:bg-[#F7F9FC] transition-colors divide-x divide-[#F2F4F7] cursor-default",
+                        "border-b border-[#F2F4F7] transition-colors divide-x divide-[#F2F4F7] cursor-default",
+                        req.is_deleted ? "bg-[#FAFAFA] opacity-70" : "hover:bg-[#F7F9FC]",
                         i === rows.length - 1 ? "border-b-0" : "",
                       ].join(" ")}
-                      onMouseEnter={(e) => showPreview(req.id, e.currentTarget.getBoundingClientRect())}
-                      onMouseLeave={hidePreview}
                     >
                       {/* № */}
                       <td className="px-5 py-4 text-[#98A2B3] font-mono text-xs whitespace-nowrap">{req.id}</td>
 
                       {/* Title */}
                       <td className="px-5 py-4 max-w-[240px]">
-                        <Link href={`/dashboard/repairs/${req.id}`} className="block group">
-                          <p className="font-semibold text-[#1D2939] group-hover:text-[#2F80C9] transition-colors line-clamp-1">
+                        <Link
+                          href={`/dashboard/repairs/${req.id}`}
+                          className="block group"
+                          onMouseEnter={(e) => showPreview(req.id, e)}
+                          onMouseLeave={hidePreview}
+                        >
+                          <p className={[
+                            "font-semibold transition-colors line-clamp-1",
+                            req.is_deleted ? "line-through text-[#98A2B3]" : "text-[#1D2939] group-hover:text-[#2F80C9]",
+                          ].join(" ")}>
                             {req.title}
                           </p>
                           {req.road_section && (
@@ -525,32 +689,17 @@ export default function RepairsListPage() {
                             <button
                               type="button"
                               title="Действия"
-                              onClick={(e) => { e.stopPropagation(); setKebab(kebab === req.id ? null : req.id); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (kebab === req.id) { setKebab(null); setKebabPos(null); return; }
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setKebabPos({ x: rect.right, y: rect.bottom + 4 });
+                                setKebab(req.id);
+                              }}
                               className="w-8 h-8 rounded-[6px] flex items-center justify-center text-[#667085] hover:bg-[#F0F4F8] hover:text-[#12345B] transition-colors"
                             >
                               <DotsIcon />
                             </button>
-                            {kebab === req.id && (
-                              <div
-                                onClick={(e) => e.stopPropagation()}
-                                className="absolute right-0 top-9 z-50 w-44 bg-white rounded-[8px] border border-[#D9E0E8] shadow-lg py-1"
-                              >
-                                <Link
-                                  href={`/dashboard/repairs/${req.id}`}
-                                  onClick={() => setKebab(null)}
-                                  className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#344054] hover:bg-[#F7F9FC] transition-colors"
-                                >
-                                  <EyeIcon /> Просмотр
-                                </Link>
-                                <Link
-                                  href={`/dashboard/repairs/${req.id}/edit`}
-                                  onClick={() => setKebab(null)}
-                                  className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#344054] hover:bg-[#F7F9FC] transition-colors"
-                                >
-                                  <EditIcon /> Редактировать
-                                </Link>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -620,6 +769,111 @@ export default function RepairsListPage() {
         )}
 
       </div>
+
+      {/* ── Kebab portal dropdown ─────────────────────────────────── */}
+      {kebab !== null && kebabPos !== null && (() => {
+        const req = all.find((r) => r.id === kebab);
+        if (!req) return null;
+        const menuW = 192;
+        const left = Math.min(kebabPos.x - menuW, window.innerWidth - menuW - 8);
+        const top  = Math.min(kebabPos.y, window.innerHeight - 200);
+        return createPortal(
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: "fixed", top, left, width: menuW, zIndex: 99999 }}
+            className="bg-white rounded-[8px] border border-[#D9E0E8] shadow-xl py-1"
+          >
+            <Link
+              href={`/dashboard/repairs/${req.id}`}
+              onClick={() => { setKebab(null); setKebabPos(null); }}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#344054] hover:bg-[#F7F9FC] transition-colors"
+            >
+              <EyeIcon /> Просмотр
+            </Link>
+            {!req.is_deleted && (
+              <>
+                <Link
+                  href={`/dashboard/repairs/${req.id}/edit`}
+                  onClick={() => { setKebab(null); setKebabPos(null); }}
+                  className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#344054] hover:bg-[#F7F9FC] transition-colors"
+                >
+                  <EditIcon /> Редактировать
+                </Link>
+                <div className="mx-3 my-1 border-t border-[#F2F4F7]" />
+                <button
+                  type="button"
+                  onClick={() => { setKebab(null); setKebabPos(null); setConfirmDelete(req); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#D92D20] hover:bg-[#FFF2F2] transition-colors"
+                >
+                  <TrashIcon /> Удалить
+                </button>
+              </>
+            )}
+            {req.is_deleted && (
+              <button
+                type="button"
+                disabled={actionLoading === req.id}
+                onClick={() => { setKebab(null); setKebabPos(null); restoreRecord(req.id); }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#027A48] hover:bg-[#E6F6EF] transition-colors disabled:opacity-50"
+              >
+                <RestoreIcon /> Восстановить
+              </button>
+            )}
+          </div>,
+          document.body
+        );
+      })()}
+
+      {/* ── Confirm delete dialog ─────────────────────────────────── */}
+      {confirmDelete !== null && (
+        <div
+          className="fixed inset-0 z-[9998] flex items-center justify-center"
+          style={{ background: "rgba(13,35,68,0.45)", backdropFilter: "blur(2px)" }}
+          onClick={() => setConfirmDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#D9E0E8] shadow-2xl w-[400px] max-w-[90vw] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            style={{ animation: "previewFadeIn 0.15s ease" }}
+          >
+            <div className="px-6 pt-6 pb-4 flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-[#FFF2F2] flex items-center justify-center mb-4">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <polyline points="3 6 5 6 21 6" stroke="#D92D20" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="#D92D20" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M10 11v6M14 11v6" stroke="#D92D20" strokeWidth="1.75" strokeLinecap="round"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="#D92D20" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#1D2939] mb-1">Удалить заявку?</h3>
+              <p className="text-sm text-[#667085] leading-relaxed">
+                Заявка <span className="font-medium text-[#344054]">«{confirmDelete.title}»</span> будет помечена как удалённая. Вы сможете восстановить её из вкладки <span className="font-medium text-[#344054]">«Удалённые»</span>.
+              </p>
+            </div>
+            <div className="flex gap-3 px-6 pb-6">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 h-10 rounded-[8px] border border-[#D9E0E8] text-sm font-medium text-[#344054] hover:bg-[#F7F9FC] transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading === confirmDelete.id}
+                onClick={() => softDelete(confirmDelete)}
+                className="flex-1 h-10 rounded-[8px] text-sm font-medium text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ background: "#D92D20" }}
+              >
+                {actionLoading === confirmDelete.id
+                  ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="animate-spin"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2.5" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="white" strokeWidth="2.5" strokeLinecap="round"/></svg> Удаление…</>
+                  : "Удалить"
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Hover preview card ─────────────────────────────────────── */}
       {preview !== null && (() => {

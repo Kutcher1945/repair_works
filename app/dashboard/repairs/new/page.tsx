@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch, apiUploadForm } from "../../../lib/auth";
+import type { DrawnGeometry } from "../../_components/DrawMap";
+import { useUnsavedChanges, UnsavedChangesModal } from "../../_components/UnsavedChangesGuard";
+
+const DrawMap = dynamic(() => import("../../_components/DrawMap"), { ssr: false });
 
 type District = { id: number; name_ru?: string | null; name_kz?: string | null; name?: string | null };
 
@@ -17,6 +22,7 @@ type FormState = {
   planned_end_date: string;
   has_traffic_restriction: boolean;
   traffic_restriction_description: string;
+  geometry: DrawnGeometry | null;
 };
 
 function SectionLabel({ num, title }: { num: number; title: string }) {
@@ -91,6 +97,7 @@ export default function NewRepairPage() {
     planned_end_date: "",
     has_traffic_restriction: false,
     traffic_restriction_description: "",
+    geometry: null,
   });
 
   const [docFiles, setDocFiles] = useState<File[]>([]);
@@ -99,6 +106,8 @@ export default function NewRepairPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitStep, setSubmitStep] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const { showModal, confirmLeave, cancelLeave } = useUnsavedChanges(isDirty);
 
   useEffect(() => {
     apiFetch<{ results?: District[] } | District[]>("/api/v1/repair-works/ref_district/")
@@ -111,6 +120,7 @@ export default function NewRepairPage() {
   }, []);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setIsDirty(true);
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -130,7 +140,9 @@ export default function NewRepairPage() {
       setError("Дата окончания не может быть раньше даты начала");
       return;
     }
+    if (!form.geometry) { setError("Нарисуйте геометрию участка на карте"); return; }
 
+    setIsDirty(false);
     setSubmitting(true);
     try {
       setSubmitStep("Создание заявки…");
@@ -146,6 +158,7 @@ export default function NewRepairPage() {
         traffic_restriction_description: form.has_traffic_restriction
           ? form.traffic_restriction_description.trim()
           : "",
+        ...(form.geometry ? { geometry: form.geometry } : {}),
       };
 
       const created = await apiFetch<{ id: number }>("/api/v1/road-repair/requests/", {
@@ -274,8 +287,30 @@ export default function NewRepairPage() {
               />
             </FieldRow>
 
-            <div className="rounded-[8px] border border-dashed border-[#D9E0E8] bg-[#F7F9FC] px-4 py-3 text-xs text-[#98A2B3]">
-              Рисование трассы на карте будет доступно в следующей версии
+            <div>
+              <label className="block text-sm font-medium text-[#344054] mb-1.5">
+                Геометрия участка
+                <span className="text-[#D92D20] ml-0.5">*</span>
+              </label>
+              <DrawMap
+                value={form.geometry}
+                onChange={(g) => set("geometry", g)}
+                disabled={submitting}
+              />
+              {form.geometry && (
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-xs text-[#027A48]">
+                    ✓ {form.geometry.type === "LineString" ? "Линия сохранена" : form.geometry.type === "Polygon" ? "Полигон сохранён" : "Точка сохранена"}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => set("geometry", null)}
+                    className="text-xs text-[#D92D20] hover:underline"
+                  >
+                    Очистить
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -470,6 +505,13 @@ export default function NewRepairPage() {
         </div>
 
       </form>
+
+      <UnsavedChangesModal
+        show={showModal}
+        mode="create"
+        onConfirm={confirmLeave}
+        onCancel={cancelLeave}
+      />
     </div>
   );
 }
