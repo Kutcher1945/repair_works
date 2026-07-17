@@ -12,6 +12,7 @@ type RepairRequest = {
   address: string;
   road_section?: string | null;
   contractor_name?: string | null;
+  organization_name?: string | null;
   status: string;
   planned_start_date: string;
   planned_end_date: string;
@@ -308,7 +309,7 @@ export default function RepairsListPage() {
         !r.title.toLowerCase().includes(q) &&
         !(r.road_section ?? "").toLowerCase().includes(q) &&
         !r.address.toLowerCase().includes(q) &&
-        !(r.contractor_name ?? "").toLowerCase().includes(q)
+        !(r.organization_name ?? "").toLowerCase().includes(q)
       ) return false;
     }
     if (fStatus   && r.status !== fStatus) return false;
@@ -318,7 +319,7 @@ export default function RepairsListPage() {
     // column-specific filters
     if (cTitle && !r.title.toLowerCase().includes(cTitle.toLowerCase()) && !(r.road_section ?? "").toLowerCase().includes(cTitle.toLowerCase())) return false;
     if (cAddress    && !r.address.toLowerCase().includes(cAddress.toLowerCase())) return false;
-    if (cContractor && !(r.contractor_name ?? "").toLowerCase().includes(cContractor.toLowerCase())) return false;
+    if (cContractor && !(r.organization_name ?? "").toLowerCase().includes(cContractor.toLowerCase())) return false;
     if (cStatus && r.status !== cStatus) return false;
     if (cStart && r.planned_start_date < cStart) return false;
     if (cEnd   && r.planned_end_date   > cEnd)   return false;
@@ -512,9 +513,9 @@ export default function RepairsListPage() {
                     </div>
                   </th>
 
-                  {/* Подрядчик */}
+                  {/* Заказчик */}
                   <th className="text-left px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs align-top min-w-[140px]">
-                    <span className="block mb-1.5 whitespace-nowrap">Подрядчик</span>
+                    <span className="block mb-1.5 whitespace-nowrap">Заказчик</span>
                     <div className="relative">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#C4CBD8] pointer-events-none"><SearchIcon /></span>
                       <input
@@ -631,9 +632,11 @@ export default function RepairsListPage() {
                         <p className="text-[#344054] line-clamp-1">{req.address || "—"}</p>
                       </td>
 
-                      {/* Contractor */}
-                      <td className="px-4 py-4 text-[#667085] whitespace-nowrap">
-                        {req.contractor_name ?? "—"}
+                      {/* Заказчик */}
+                      <td className="px-4 py-4 max-w-[180px]">
+                        {req.organization_name
+                          ? <span className="text-[#344054] line-clamp-2 text-sm">{req.organization_name}</span>
+                          : <span className="text-[#C4CBD8]">—</span>}
                       </td>
 
                       {/* Start */}

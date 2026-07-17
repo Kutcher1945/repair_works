@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "../context/auth-context";
+import { apiFetch } from "../lib/auth";
 
 const SIDEBAR_KEY = "rw-sidebar-collapsed";
 
@@ -151,12 +152,164 @@ function LogoMark() {
 
 const NAV_ITEMS = [
   { href: "/dashboard",          label: "Главная",           icon: HomeIcon,         exact: true,  adminOnly: false },
-  { href: "/dashboard/repairs",  label: "Ремонтные работы", icon: ConstructionIcon, exact: false, adminOnly: false },
+  { href: "/dashboard/repairs",  label: "Заявки",            icon: ConstructionIcon, exact: false, adminOnly: false },
   { href: "/dashboard/users",    label: "Пользователи",     icon: UsersIcon,        exact: false, adminOnly: true  },
   { href: "/dashboard/map",      label: "Карта",             icon: MapIcon,          exact: false, adminOnly: false },
   { href: "/dashboard/reports",  label: "Отчёты",            icon: ChartIcon,        exact: false, adminOnly: false },
   { href: "/dashboard/settings", label: "Настройки",         icon: GearIcon,         exact: false, adminOnly: false },
 ];
+
+/* ── Notification Bell ────────────────────────────────────────────── */
+
+type Notif = {
+  id: number;
+  title: string;
+  message: string;
+  is_read: boolean;
+  request_id: number | null;
+  created_at: string;
+};
+
+function NotificationBell() {
+  const [notifs,  setNotifs]  = useState<Notif[]>([]);
+  const [open,    setOpen]    = useState(false);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const unread = notifs.filter((n) => !n.is_read).length;
+
+  const load = useCallback(() => {
+    setLoading(true);
+    apiFetch<Notif[]>("/api/v1/common/notifications/")
+      .then(setNotifs)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 30_000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  async function markRead(n: Notif) {
+    if (!n.is_read) {
+      await apiFetch(`/api/v1/common/notifications/${n.id}/read/`, { method: "PATCH" }).catch(() => {});
+      setNotifs((prev) => prev.map((x) => x.id === n.id ? { ...x, is_read: true } : x));
+    }
+  }
+
+  async function markAllRead() {
+    await apiFetch("/api/v1/common/notifications/read-all/", { method: "POST" }).catch(() => {});
+    setNotifs((prev) => prev.map((n) => ({ ...n, is_read: true })));
+  }
+
+  function fmtTime(s: string) {
+    const d = new Date(s);
+    const now = new Date();
+    const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
+    if (diffMin < 1) return "только что";
+    if (diffMin < 60) return `${diffMin} мин. назад`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `${diffH} ч. назад`;
+    return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen((v) => !v); if (!open) load(); }}
+        className="relative w-8 h-8 flex items-center justify-center rounded-[6px] text-[#667085] hover:bg-[#F2F4F7] transition-colors"
+        aria-label="Уведомления"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#D92D20] text-white text-[10px] font-bold flex items-center justify-center">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-10 w-80 bg-white border border-[#D9E0E8] rounded-[10px] shadow-lg z-50 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F7]">
+            <span className="text-sm font-semibold text-[#1D2939]">Уведомления</span>
+            {unread > 0 && (
+              <button
+                type="button"
+                onClick={markAllRead}
+                className="text-xs text-[#2F80C9] hover:underline"
+              >
+                Прочитать все
+              </button>
+            )}
+          </div>
+
+          {/* List */}
+          <div className="max-h-80 overflow-y-auto divide-y divide-[#F7F9FC]">
+            {loading && notifs.length === 0 && (
+              <div className="py-8 flex items-center justify-center text-[#98A2B3] text-sm">Загрузка…</div>
+            )}
+            {!loading && notifs.length === 0 && (
+              <div className="py-8 text-center text-sm text-[#98A2B3]">Нет уведомлений</div>
+            )}
+            {notifs.map((n) => (
+              <div
+                key={n.id}
+                className={`px-4 py-3 transition-colors ${!n.is_read ? "bg-[#F7F9FF]" : "hover:bg-[#F7F9FC]"}`}
+              >
+                {n.request_id ? (
+                  <Link
+                    href={`/dashboard/repairs/${n.request_id}`}
+                    onClick={() => { markRead(n); setOpen(false); }}
+                    className="block"
+                  >
+                    <NotifContent n={n} fmtTime={fmtTime} />
+                  </Link>
+                ) : (
+                  <div onClick={() => markRead(n)}>
+                    <NotifContent n={n} fmtTime={fmtTime} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotifContent({ n, fmtTime }: { n: Notif; fmtTime: (s: string) => string }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      {!n.is_read && <span className="mt-1.5 w-2 h-2 rounded-full bg-[#2F80C9] flex-shrink-0" />}
+      {n.is_read  && <span className="mt-1.5 w-2 h-2 rounded-full bg-transparent flex-shrink-0" />}
+      <div className="flex-1 min-w-0">
+        <p className={`text-xs leading-snug ${!n.is_read ? "font-semibold text-[#1D2939]" : "text-[#344054]"}`}>
+          {n.title}
+        </p>
+        {n.message && <p className="text-[11px] text-[#667085] mt-0.5 line-clamp-2">{n.message}</p>}
+        <p className="text-[10px] text-[#98A2B3] mt-1">{fmtTime(n.created_at)}</p>
+      </div>
+    </div>
+  );
+}
 
 /* ── Layout ───────────────────────────────────────────────────────── */
 
@@ -415,6 +568,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-medium text-white truncate leading-tight">{displayName}</p>
+                  {user.organization_name && (
+                    <p className="text-[11px] font-medium truncate leading-tight" style={{ color: "rgba(125,211,252,0.75)" }}>{user.organization_name}</p>
+                  )}
                   <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.38)" }}>{user.email}</p>
                 </div>
               </div>
@@ -444,14 +600,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Header */}
         <header className="flex items-center justify-between px-6 h-14 bg-white border-b border-[#D9E0E8] flex-shrink-0">
           <h1 className="text-[15px] font-semibold text-[#1D2939]">{currentLabel}</h1>
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-              style={{ background: "linear-gradient(135deg, #DCECF8, #BBDAF5)", color: "#12345B" }}
-            >
-              {initials}
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <div className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, #DCECF8, #BBDAF5)", color: "#12345B" }}
+              >
+                {initials}
+              </div>
+              <div className="hidden sm:flex flex-col leading-tight">
+                <span className="text-[13px] font-medium text-[#344054]">{displayName}</span>
+                {user.organization_name && (
+                  <span className="text-[11px] text-[#667085]">{user.organization_name}</span>
+                )}
+              </div>
             </div>
-            <span className="hidden sm:inline text-[13px] font-medium text-[#344054]">{displayName}</span>
           </div>
         </header>
 

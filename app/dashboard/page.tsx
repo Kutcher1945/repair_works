@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "../lib/auth";
+import { useAuth } from "../context/auth-context";
 
 /* ── New road_repair request type ───────────────────────────────── */
 type RepairRequest = {
@@ -80,6 +81,7 @@ function ChevronIcon() {
 
 /* ── Page ────────────────────────────────────────────────────────── */
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [requests, setRequests]   = useState<RepairRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [requestsError, setRequestsError] = useState<string | null>(null);
@@ -102,8 +104,75 @@ export default function DashboardPage() {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5);
 
+  const displayName = user?.first_name
+    ? `${user.first_name}${user.last_name ? " " + user.last_name : ""}`.trim()
+    : user?.email ?? "";
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 6)  return "Доброй ночи";
+    if (h < 12) return "Доброе утро";
+    if (h < 18) return "Добрый день";
+    return "Добрый вечер";
+  })();
+
+  const today = new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
   return (
     <div className="space-y-6">
+
+      {/* ── Welcome banner ─────────────────────────────────── */}
+      <div
+        className="relative overflow-hidden rounded-2xl px-7 py-6"
+        style={{
+          background: "linear-gradient(135deg, #06152A 0%, #0D2344 55%, #12345B 100%)",
+          boxShadow: "0 4px 24px rgba(18,52,91,0.18)",
+        }}
+      >
+        {/* Subtle grid */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
+            backgroundSize: "32px 32px",
+          }}
+        />
+        {/* Glow */}
+        <div
+          className="absolute -right-16 -top-16 w-64 h-64 rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle, rgba(47,128,201,0.18) 0%, transparent 70%)" }}
+        />
+
+        <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            {user?.organization_name && (
+              <p className="text-[12px] font-semibold uppercase tracking-[0.14em] mb-1" style={{ color: "rgba(125,211,252,0.7)" }}>
+                {user.organization_name}
+              </p>
+            )}
+            <h2 className="text-[22px] font-bold text-white leading-tight">
+              {greeting}{displayName ? `, ${displayName.split(" ")[0]}` : ""}!
+            </h2>
+            <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
+              {today.charAt(0).toUpperCase() + today.slice(1)}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard/repairs/new"
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-[8px] text-sm font-medium transition-colors"
+              style={{ background: "rgba(47,128,201,0.25)", color: "#7DD3FC", border: "1px solid rgba(125,211,252,0.25)" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round"/>
+              </svg>
+              Новая заявка
+            </Link>
+          </div>
+        </div>
+      </div>
 
       {/* ── Section: Road repair requests ──────────────────── */}
       <section className="space-y-4">
