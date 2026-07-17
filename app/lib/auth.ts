@@ -8,10 +8,14 @@ export type AuthTokens = {
 export type User = {
   id: number;
   email: string;
+  username?: string;
   first_name: string;
   last_name: string;
+  phone?: string | null;
   role: "admin" | "employee" | "student";
   organization_name?: string;
+  date_joined?: string;
+  is_active?: boolean;
 };
 
 export function getTokens(): AuthTokens | null {

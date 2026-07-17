@@ -72,7 +72,7 @@ function ProfileTab({ user, onUpdate }: { user: User; onUpdate: (u: User) => voi
           {[
             { label: "Email",         value: user.email },
             { label: "Роль",          value: ROLE_LABELS[user.role ?? ""] ?? user.role ?? "—" },
-            { label: "Организация",   value: (user as { organization_name?: string }).organization_name || "—" },
+            { label: "Организация",   value: user.organization_name || "—" },
             { label: "Дата регистрации", value: user.date_joined ? fmtDate(user.date_joined) : "—" },
           ].map(({ label, value }) => (
             <div key={label} className="grid grid-cols-[160px_1fr] gap-3 px-5 py-3">
