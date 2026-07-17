@@ -97,7 +97,10 @@ function GeomanControls({ value, onChange, disabled }: Props) {
 const ALMATY: [number, number] = [43.238, 76.945];
 
 export default function DrawMap({ value, onChange, disabled }: Props) {
+  const [mounted,    setMounted]    = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   /* Escape to exit fullscreen */
   useEffect(() => {
@@ -116,14 +119,16 @@ export default function DrawMap({ value, onChange, disabled }: Props) {
       className="w-full overflow-hidden border border-[#D9E0E8]"
       style={containerStyle}
     >
-      <MapContainer center={ALMATY} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl>
-        <TileLayer
-          attribution='&copy; <a href="https://yandex.com/maps" target="_blank">Яндекс</a>'
-          url="https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU"
-        />
-        <GeomanControls value={value} onChange={onChange} disabled={disabled ?? false} />
-        <MapSizeInvalidator trigger={fullscreen} />
-      </MapContainer>
+      {mounted && (
+        <MapContainer center={ALMATY} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl>
+          <TileLayer
+            attribution='&copy; <a href="https://yandex.com/maps" target="_blank">Яндекс</a>'
+            url="https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU"
+          />
+          <GeomanControls value={value} onChange={onChange} disabled={disabled ?? false} />
+          <MapSizeInvalidator trigger={fullscreen} />
+        </MapContainer>
+      )}
 
       {/* Fullscreen toggle button */}
       <button

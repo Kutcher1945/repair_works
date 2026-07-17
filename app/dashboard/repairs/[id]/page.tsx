@@ -519,9 +519,12 @@ export default function RepairDetailPage() {
                 actions.push({ label: "Аннулировать", status: "cancelled", style: "border border-[#D92D20] text-[#D92D20] hover:bg-[#FFF2F2]", needsComment: true });
               }
             } else {
-              // employee: can only submit their draft for review
+              // employee: submit draft or re-submit after revision
               if (request.status === "draft") {
                 actions.push({ label: "Отправить на проверку", status: "pending_review", style: "bg-[#12345B] text-white hover:bg-[#0A223D]" });
+              }
+              if (request.status === "needs_revision") {
+                actions.push({ label: "Отправить на повторную проверку", status: "pending_review", style: "bg-[#12345B] text-white hover:bg-[#0A223D]" });
               }
             }
 

@@ -108,11 +108,50 @@ export default function LoginPage() {
     <div className="flex flex-1 overflow-hidden">
       {/* Left hero */}
       <div
-        className="hidden lg:block relative flex-1 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/background-login.png')" }}
+        className="hidden lg:block relative flex-1 overflow-hidden"
         role="img"
         aria-label="Панорама Алматы — Ремонтные работы"
       >
+        <style>{`
+          @keyframes heroStripT {
+            from { transform: translateY(-110%); }
+            to   { transform: translateY(0); }
+          }
+          @keyframes heroStripB {
+            from { transform: translateY(110%); }
+            to   { transform: translateY(0); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .hero-strip { animation-duration: 0.01ms !important; animation-delay: 0ms !important; }
+          }
+        `}</style>
+
+        {Array.from({ length: 10 }, (_, i) => {
+          const n = 10;
+          const w = 100 / n;  // strip width in %
+          const d = 16;       // diagonal offset in %
+          const x0 = i * w - d / 2;
+          const x1 = x0 + w;
+          // Extend first strip to cover bottom-left corner,
+          // extend last strip to cover top-right corner
+          const tl = `${i === 0 ? 0 : x0}% 0%`;
+          const tr = `${i === n - 1 ? 100 : x1}% 0%`;
+          const br = `${i === n - 1 ? 100 : x1 + d}% 100%`;
+          const bl = `${i === 0 ? 0 : x0 + d}% 100%`;
+          return (
+            <div
+              key={i}
+              className="hero-strip absolute inset-0 bg-cover bg-center bg-no-repeat"
+              style={{
+                backgroundImage: "url('/background-login.png')",
+                clipPath: `polygon(${tl}, ${tr}, ${br}, ${bl})`,
+                animation: `${i % 2 === 0 ? "heroStripT" : "heroStripB"} 1s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.075}s both`,
+              }}
+            />
+          );
+        })}
+
+        {/* Gradient overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
