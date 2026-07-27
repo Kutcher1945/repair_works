@@ -18,9 +18,14 @@ export type MapRepairRequest = {
   title: string;
   status: string;
   address: string;
-  organization_name?: string;
+  road_section?: string | null;
+  organization_name?: string | null;
   planned_start_date: string;
   planned_end_date: string;
+  days_remaining?: number | null;
+  days_overdue?: number | null;
+  is_overdue?: boolean;
+  photos?: Array<{ phase: string; image: string }>;
   geometry?: {
     type: "LineString" | "Polygon" | "Point";
     coordinates: unknown;
@@ -62,17 +67,36 @@ function popupHtml(req: MapRepairRequest) {
   const color = STATUS_COLOR[req.status] ?? "#667085";
   const bg    = STATUS_BG[req.status]    ?? "#F2F4F7";
   const label = STATUS_LABELS[req.status] ?? req.status;
+
+  const photo = req.photos?.find((p) => p.phase === "before") ?? req.photos?.[0];
+
+  let daysHtml = "";
+  if (req.is_overdue && req.days_overdue && req.days_overdue > 0) {
+    daysHtml = `<p style="font-size:11px;color:#D92D20;margin:0 0 5px">🔴 Просрочено: ${req.days_overdue} дн.</p>`;
+  } else if (req.days_remaining != null && req.days_remaining > 0) {
+    daysHtml = `<p style="font-size:11px;color:#667085;margin:0 0 5px">⏰ Осталось: ${req.days_remaining} дн.</p>`;
+  } else if (req.days_remaining === 0) {
+    daysHtml = `<p style="font-size:11px;color:#D92D20;margin:0 0 5px">🔴 Срок истекает сегодня</p>`;
+  }
+
   return `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-width:220px;max-width:280px">
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-width:250px;max-width:300px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <span style="background:${bg};color:${color};padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600">${label}</span>
-        <span style="font-size:11px;color:#98A2B3">#${req.id}</span>
+        <span style="background:${bg};color:${color};padding:2px 10px;border-radius:99px;font-size:11px;font-weight:600">${label}</span>
+        <span style="font-size:11px;color:#98A2B3;margin-left:auto">#${req.id}</span>
       </div>
-      <p style="font-size:13px;font-weight:600;color:#1D2939;margin:0 0 5px;line-height:1.35">${req.title}</p>
-      ${req.address ? `<p style="font-size:12px;color:#667085;margin:0 0 4px">📍 ${req.address}</p>` : ""}
-      ${req.organization_name ? `<p style="font-size:11px;color:#98A2B3;margin:0 0 4px">🏢 ${req.organization_name}</p>` : ""}
-      <p style="font-size:11px;color:#98A2B3;margin:0 0 10px">${fmtDate(req.planned_start_date)} — ${fmtDate(req.planned_end_date)}</p>
-      <a href="/dashboard/repairs/${req.id}" style="display:inline-flex;align-items:center;gap:4px;background:#2F80C9;color:#fff;padding:5px 14px;border-radius:6px;font-size:12px;font-weight:500;text-decoration:none">Открыть заявку →</a>
+      <p style="font-size:14px;font-weight:700;color:#1D2939;margin:0 0 10px;line-height:1.3">${req.title}</p>
+      ${req.organization_name ? `<p style="font-size:11px;color:#667085;margin:0 0 5px">🏢 ${req.organization_name}</p>` : ""}
+      ${req.address ? `<p style="font-size:11px;color:#667085;margin:0 0 5px">📍 ${req.address}</p>` : ""}
+      ${req.road_section ? `<p style="font-size:11px;color:#98A2B3;margin:0 0 5px;padding-left:16px">↔ ${req.road_section}</p>` : ""}
+      <p style="font-size:11px;color:#98A2B3;margin:0 0 5px">📅 ${fmtDate(req.planned_start_date)} — ${fmtDate(req.planned_end_date)}</p>
+      ${daysHtml}
+      ${photo ? `
+        <div style="margin:10px 0 10px;border-radius:7px;overflow:hidden;height:110px;background:#F2F4F7">
+          <img src="${photo.image}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.style.display='none'"/>
+        </div>
+      ` : ""}
+      <a href="/dashboard/repairs/${req.id}" style="display:flex;align-items:center;justify-content:center;gap:4px;background:#12345B;color:#fff;padding:7px 0;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;margin-top:${photo ? "0" : "10px"}">Открыть заявку →</a>
     </div>
   `;
 }
@@ -114,7 +138,7 @@ function RepairLayers({ requests }: { requests: MapRepairRequest[] }) {
               }),
           }
         );
-        gj.bindPopup(popupHtml(req), { maxWidth: 290 });
+        gj.bindPopup(popupHtml(req), { maxWidth: 320 });
         gj.addTo(lg);
         try { allBounds.push(gj.getBounds()); } catch {}
       } catch {}

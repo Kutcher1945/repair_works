@@ -75,6 +75,15 @@ function GearIcon() {
   );
 }
 
+function ProfileIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function LogoutIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -151,13 +160,18 @@ function LogoMark() {
 /* ── Nav config ───────────────────────────────────────────────────── */
 
 const NAV_ITEMS = [
-  { href: "/dashboard",          label: "Главная",           icon: HomeIcon,         exact: true,  adminOnly: false },
-  { href: "/dashboard/repairs",  label: "Заявки",            icon: ConstructionIcon, exact: false, adminOnly: false },
+  { href: "/dashboard",          label: "Главная",          icon: HomeIcon,         exact: true,  adminOnly: false },
+  { href: "/dashboard/repairs",  label: "Заявки",           icon: ConstructionIcon, exact: false, adminOnly: false },
+  { href: "/dashboard/map",      label: "Карта",            icon: MapIcon,          exact: false, adminOnly: false },
+  { href: "/dashboard/reports",  label: "Отчёты",           icon: ChartIcon,        exact: false, adminOnly: false },
   { href: "/dashboard/users",    label: "Пользователи",     icon: UsersIcon,        exact: false, adminOnly: true  },
-  { href: "/dashboard/map",      label: "Карта",             icon: MapIcon,          exact: false, adminOnly: false },
-  { href: "/dashboard/reports",  label: "Отчёты",            icon: ChartIcon,        exact: false, adminOnly: false },
-  { href: "/dashboard/settings", label: "Настройки",         icon: GearIcon,         exact: false, adminOnly: false },
+  { href: "/dashboard/profile",  label: "Личный кабинет",   icon: ProfileIcon,      exact: false, adminOnly: false },
+  { href: "/dashboard/settings", label: "Настройки",        icon: GearIcon,         exact: false, adminOnly: false },
 ];
+
+const EXTRA_LABELS: Record<string, string> = {
+  "/dashboard/profile": "Личный кабинет",
+};
 
 /* ── Notification Bell ────────────────────────────────────────────── */
 
@@ -352,9 +366,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const initials = (user.first_name?.[0] ?? user.email[0]).toUpperCase();
 
   const currentLabel =
+    EXTRA_LABELS[pathname] ??
     NAV_ITEMS.find(({ href, exact }) =>
       exact ? pathname === href : pathname.startsWith(href),
-    )?.label ?? "Панель управления";
+    )?.label ??
+    "Панель управления";
 
   const isCollapsed = mounted && collapsed;
   const sidebarWidth = isCollapsed ? 72 : 240;
@@ -454,8 +470,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
           )}
           <ul className="space-y-2" style={{ padding: "0 8px" }}>
-            {NAV_ITEMS.filter(({ adminOnly }) => !adminOnly || user.role === "admin").map(({ href, label, icon: Icon, exact }) => {
+            {NAV_ITEMS.filter(({ adminOnly }) => !adminOnly || user.role === "admin").map(({ href, label, icon: Icon, exact }, idx) => {
               const isActive = exact ? pathname === href : pathname.startsWith(href);
+              const num = idx + 1;
               return (
                 <li key={href}>
                   <Link
@@ -511,12 +528,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {!isCollapsed && (
                       <>
                         <span className="relative z-10 text-[13.5px] font-medium flex-1 truncate">{label}</span>
-                        {isActive && (
-                          <span
-                            className="relative z-10 w-2 h-2 rounded-full flex-shrink-0 bg-white"
-                            style={{ animation: "rwDot 2s ease-in-out infinite" }}
-                          />
-                        )}
+                        <span
+                          className="relative z-10 text-[10px] font-semibold flex-shrink-0 w-4 h-4 rounded flex items-center justify-center"
+                          style={{
+                            color: isActive ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.22)",
+                            background: isActive ? "rgba(255,255,255,0.10)" : "transparent",
+                          }}
+                        >
+                          {num}
+                        </span>
                       </>
                     )}
                   </Link>
@@ -559,7 +579,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           ) : (
             <div>
-              <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg mb-1">
+              <Link
+                href="/dashboard/profile"
+                className="flex items-center gap-2.5 px-2 py-2 rounded-lg mb-1 transition-colors"
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+              >
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-white flex-shrink-0"
                   style={{ background: "linear-gradient(135deg, #2F80C9, #12345B)", border: "1.5px solid rgba(255,255,255,0.18)" }}
@@ -573,7 +598,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   )}
                   <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.38)" }}>{user.email}</p>
                 </div>
-              </div>
+              </Link>
               <button
                 onClick={logout}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors duration-150"
@@ -602,7 +627,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <h1 className="text-[15px] font-semibold text-[#1D2939]">{currentLabel}</h1>
           <div className="flex items-center gap-3">
             <NotificationBell />
-            <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/profile"
+              className="flex items-center gap-2 rounded-[8px] px-2 py-1 hover:bg-[#F2F4F7] transition-colors"
+            >
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
                 style={{ background: "linear-gradient(135deg, #DCECF8, #BBDAF5)", color: "#12345B" }}
@@ -615,7 +643,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span className="text-[11px] text-[#667085]">{user.organization_name}</span>
                 )}
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 

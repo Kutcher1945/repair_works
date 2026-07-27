@@ -5,8 +5,10 @@ import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch, apiUploadForm } from "../../../../lib/auth";
+import { useAuth } from "../../../../context/auth-context";
 import type { DrawnGeometry } from "../../../_components/DrawMap";
 import { useUnsavedChanges, UnsavedChangesModal } from "../../../_components/UnsavedChangesGuard";
+import ContractorCombobox from "../../../_components/ContractorCombobox";
 
 const DrawMap = dynamic(() => import("../../../_components/DrawMap"), { ssr: false });
 
@@ -19,6 +21,10 @@ type RepairRequest = {
   id: number;
   title: string;
   description: string;
+  contractor_name?: string | null;
+  contractor_phone?: string | null;
+  contractor_description?: string | null;
+  organization_name?: string | null;
   district: number | { id: number } | null;
   address: string;
   road_section: string;
@@ -34,7 +40,9 @@ type RepairRequest = {
 
 type FormState = {
   title: string;
-  description: string;
+  contractor_name: string;
+  contractor_phone: string;
+  contractor_description: string;
   district: string;
   address: string;
   road_section: string;
@@ -67,7 +75,7 @@ function SectionLabel({ num, title }: { num: number; title: string }) {
   );
 }
 
-function FieldRow({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function FieldRow({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="block text-sm font-medium text-[#344054] mb-1.5">
@@ -75,11 +83,13 @@ function FieldRow({ label, required, children }: { label: string; required?: boo
         {required && <span className="text-[#D92D20] ml-0.5">*</span>}
       </label>
       {children}
+      {hint && <p className="text-xs text-[#98A2B3] mt-1">{hint}</p>}
     </div>
   );
 }
 
 const INPUT = "w-full h-10 px-3.5 rounded-[6px] border border-[#D9E0E8] bg-white text-sm text-[#1D2939] placeholder:text-[#98A2B3] outline-none transition-[border-color,box-shadow] focus:border-[#2F80C9] focus:ring-2 focus:ring-[#2F80C9]/20 disabled:opacity-60 disabled:bg-[#F7F9FC]";
+const INPUT_READONLY = "w-full h-10 px-3.5 rounded-[6px] border border-[#E9EEF4] bg-[#F7F9FC] text-sm text-[#667085] outline-none cursor-default";
 const TEXTAREA = "w-full px-3.5 py-2.5 rounded-[6px] border border-[#D9E0E8] bg-white text-sm text-[#1D2939] placeholder:text-[#98A2B3] outline-none transition-[border-color,box-shadow] focus:border-[#2F80C9] focus:ring-2 focus:ring-[#2F80C9]/20 disabled:opacity-60 disabled:bg-[#F7F9FC] resize-none";
 
 function SpinnerIcon({ size = 16 }: { size?: number }) {
@@ -123,6 +133,7 @@ export default function EditRepairPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
+  const { user } = useAuth();
 
   const contractRef = useRef<HTMLInputElement>(null);
   const photosRef = useRef<HTMLInputElement>(null);
@@ -139,7 +150,9 @@ export default function EditRepairPage() {
 
   const [form, setForm] = useState<FormState>({
     title: "",
-    description: "",
+    contractor_name: "",
+    contractor_phone: "",
+    contractor_description: "",
     district: "",
     address: "",
     road_section: "",
@@ -150,6 +163,7 @@ export default function EditRepairPage() {
     geometry: null,
   });
 
+  const [contractorPhoneLocked, setContractorPhoneLocked] = useState(false);
   const [newDocFiles, setNewDocFiles] = useState<File[]>([]);
   const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([]);
 
@@ -178,7 +192,9 @@ export default function EditRepairPage() {
 
         setForm({
           title: req.title,
-          description: req.description,
+          contractor_name: req.contractor_name ?? "",
+          contractor_phone: req.contractor_phone ?? "",
+          contractor_description: req.contractor_description ?? "",
           district: districtId,
           address: req.address,
           road_section: req.road_section,
@@ -191,8 +207,8 @@ export default function EditRepairPage() {
 
         setCurrentStatus(req.status);
         setReadOnly(!EDITABLE_STATUSES.includes(req.status));
-        setExistingDocs(req.documents);
-        setExistingPhotos(req.photos.filter((p) => p.phase === "before"));
+        setExistingDocs(req.documents ?? []);
+        setExistingPhotos((req.photos ?? []).filter((p) => p.phase === "before"));
       })
       .catch((e: unknown) => setPageError(e instanceof Error ? e.message : "Ошибка загрузки"))
       .finally(() => {
@@ -232,7 +248,9 @@ export default function EditRepairPage() {
         method: "PATCH",
         body: JSON.stringify({
           title: form.title.trim(),
-          description: form.description.trim(),
+          contractor_name: form.contractor_name.trim(),
+          contractor_phone: form.contractor_phone.trim(),
+          contractor_description: form.contractor_description.trim(),
           district: Number(form.district),
           address: form.address.trim(),
           road_section: form.road_section.trim(),
@@ -357,7 +375,7 @@ export default function EditRepairPage() {
         <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-6">
           <SectionLabel num={1} title="Общая информация" />
           <div className="space-y-4">
-            <FieldRow label="Название заявки" required>
+            <FieldRow label="Наименование проекта" required>
               <input
                 type="text"
                 className={INPUT}
@@ -368,15 +386,65 @@ export default function EditRepairPage() {
                 maxLength={500}
               />
             </FieldRow>
-            <FieldRow label="Описание работ" required>
-              <textarea
-                className={`${TEXTAREA} h-28`}
-                placeholder="Опишите суть и объём предполагаемых работ…"
-                value={form.description}
-                onChange={(e) => set("description", e.target.value)}
-                disabled={disabled}
-              />
-            </FieldRow>
+
+            {/* Customer — read-only from profile */}
+            <div className="grid grid-cols-2 gap-4">
+              <FieldRow label="Заказчик" hint="Заполняется автоматически из профиля">
+                <input type="text" className={INPUT_READONLY} value={user?.organization_name ?? "—"} readOnly tabIndex={-1} />
+              </FieldRow>
+              <FieldRow label="Телефон заказчика" hint="Заполняется автоматически из профиля">
+                <input type="text" className={INPUT_READONLY} value={user?.phone ?? "—"} readOnly tabIndex={-1} />
+              </FieldRow>
+            </div>
+
+            {/* Contractor */}
+            <div className="pt-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#98A2B3] mb-3">Подрядчик</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FieldRow label="Наименование подрядчика">
+                    <ContractorCombobox
+                      name={form.contractor_name}
+                      onNameChange={(name) => {
+                        set("contractor_name", name);
+                        setContractorPhoneLocked(false);
+                      }}
+                      onSelect={(name, phone) => {
+                        set("contractor_name", name);
+                        set("contractor_phone", phone);
+                        setContractorPhoneLocked(true);
+                      }}
+                      disabled={disabled}
+                      className={INPUT}
+                    />
+                  </FieldRow>
+                  <FieldRow
+                    label="Телефон подрядчика"
+                    hint={contractorPhoneLocked ? "Заполнено из справочника подрядчиков" : undefined}
+                  >
+                    <input
+                      type="tel"
+                      className={contractorPhoneLocked ? INPUT_READONLY : INPUT}
+                      placeholder="+7 (___) ___-__-__"
+                      value={form.contractor_phone}
+                      onChange={(e) => { if (!contractorPhoneLocked) set("contractor_phone", e.target.value); }}
+                      readOnly={contractorPhoneLocked}
+                      disabled={disabled}
+                      maxLength={30}
+                    />
+                  </FieldRow>
+                </div>
+                <FieldRow label="Описание работ подрядчика">
+                  <textarea
+                    className={`${TEXTAREA} h-24`}
+                    placeholder="Опишите суть и объём работ, выполняемых подрядчиком…"
+                    value={form.contractor_description}
+                    onChange={(e) => set("contractor_description", e.target.value)}
+                    disabled={disabled}
+                  />
+                </FieldRow>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -501,11 +569,12 @@ export default function EditRepairPage() {
               <input
                 ref={contractRef}
                 type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.dwg,.jpg,.jpeg,.png"
                 multiple
                 className="hidden"
                 onChange={(e) => {
-                  setNewDocFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])]);
+                  const files = Array.from(e.target.files ?? []);
+                  setNewDocFiles((prev) => [...prev, ...files]);
                   if (contractRef.current) contractRef.current.value = "";
                 }}
               />
@@ -523,7 +592,7 @@ export default function EditRepairPage() {
               <button type="button" onClick={() => contractRef.current?.click()} className="w-full flex flex-col items-center gap-2 py-6 rounded-[8px] border border-dashed border-[#D9E0E8] text-[#98A2B3] hover:border-[#2F80C9] hover:text-[#2F80C9] transition-colors">
                 <UploadIcon />
                 <span className="text-sm">{newDocFiles.length > 0 ? `Добавить ещё (${newDocFiles.length} выбрано)` : "Добавить документы"}</span>
-                <span className="text-xs">PDF, DOC, DOCX, XLS, XLSX</span>
+                <span className="text-xs">PDF, DOC, DOCX, XLS, DWG, JPG, PNG</span>
               </button>
             </>
           )}
@@ -554,7 +623,7 @@ export default function EditRepairPage() {
 
           {!readOnly && (
             <>
-              <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { setNewPhotoFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])]); }} />
+              <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const files = Array.from(e.target.files ?? []); setNewPhotoFiles((prev) => [...prev, ...files]); if (photosRef.current) photosRef.current.value = ""; }} />
               {newPhotoFiles.length > 0 && (
                 <div className="grid grid-cols-4 gap-3 mb-4">
                   {newPhotoFiles.map((f, i) => {

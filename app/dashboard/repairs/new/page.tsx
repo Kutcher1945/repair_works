@@ -5,8 +5,10 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch, apiUploadForm } from "../../../lib/auth";
+import { useAuth } from "../../../context/auth-context";
 import type { DrawnGeometry } from "../../_components/DrawMap";
 import { useUnsavedChanges, UnsavedChangesModal } from "../../_components/UnsavedChangesGuard";
+import ContractorCombobox from "../../_components/ContractorCombobox";
 
 const DrawMap = dynamic(() => import("../../_components/DrawMap"), { ssr: false });
 
@@ -14,7 +16,9 @@ type District = { id: number; name_ru?: string | null; name_kz?: string | null; 
 
 type FormState = {
   title: string;
-  description: string;
+  contractor_name: string;
+  contractor_phone: string;
+  contractor_description: string;
   district: string;
   address: string;
   road_section: string;
@@ -36,7 +40,7 @@ function SectionLabel({ num, title }: { num: number; title: string }) {
   );
 }
 
-function FieldRow({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function FieldRow({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="block text-sm font-medium text-[#344054] mb-1.5">
@@ -44,11 +48,13 @@ function FieldRow({ label, required, children }: { label: string; required?: boo
         {required && <span className="text-[#D92D20] ml-0.5">*</span>}
       </label>
       {children}
+      {hint && <p className="text-xs text-[#98A2B3] mt-1">{hint}</p>}
     </div>
   );
 }
 
 const INPUT = "w-full h-10 px-3.5 rounded-[6px] border border-[#D9E0E8] bg-white text-sm text-[#1D2939] placeholder:text-[#98A2B3] outline-none transition-[border-color,box-shadow] focus:border-[#2F80C9] focus:ring-2 focus:ring-[#2F80C9]/20 disabled:opacity-60";
+const INPUT_READONLY = "w-full h-10 px-3.5 rounded-[6px] border border-[#E9EEF4] bg-[#F7F9FC] text-sm text-[#667085] outline-none cursor-default";
 const TEXTAREA = "w-full px-3.5 py-2.5 rounded-[6px] border border-[#D9E0E8] bg-white text-sm text-[#1D2939] placeholder:text-[#98A2B3] outline-none transition-[border-color,box-shadow] focus:border-[#2F80C9] focus:ring-2 focus:ring-[#2F80C9]/20 disabled:opacity-60 resize-none";
 
 function SpinnerIcon({ size = 16 }: { size?: number }) {
@@ -79,9 +85,80 @@ function XIcon() {
   );
 }
 
+function DocFileList({ files, onRemove }: { files: File[]; onRemove: (i: number) => void }) {
+  if (files.length === 0) return null;
+  return (
+    <div className="space-y-2 mb-3">
+      {files.map((f, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-[8px] border border-[#D9E0E8] bg-[#F7F9FC]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-[#2F80C9] flex-shrink-0" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+            <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+          </svg>
+          <span className="text-sm text-[#1D2939] flex-1 min-w-0 truncate">{f.name}</span>
+          <button
+            type="button"
+            onClick={() => onRemove(i)}
+            className="text-[#98A2B3] hover:text-[#D92D20] transition-colors flex-shrink-0"
+            aria-label="Удалить файл"
+          >
+            <XIcon />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function UploadZone({
+  label, accept, acceptLabel, files, inputRef, onAdd, onRemove, disabled,
+}: {
+  label: string;
+  accept: string;
+  acceptLabel: string;
+  files: File[];
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onAdd: (files: File[]) => void;
+  onRemove: (i: number) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-[#344054] mb-2">{label}</p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const picked = Array.from(e.target.files ?? []);
+          if (inputRef.current) inputRef.current.value = "";
+          onAdd(picked);
+        }}
+      />
+      <DocFileList files={files} onRemove={onRemove} />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={disabled}
+        className="w-full flex flex-col items-center gap-2 py-5 rounded-[8px] border border-dashed border-[#D9E0E8] text-[#98A2B3] hover:border-[#2F80C9] hover:text-[#2F80C9] transition-colors disabled:opacity-50 disabled:pointer-events-none"
+      >
+        <UploadIcon />
+        <span className="text-sm">
+          {files.length > 0 ? `Добавить ещё (${files.length} выбрано)` : "Выбрать файлы"}
+        </span>
+        <span className="text-xs">{acceptLabel}</span>
+      </button>
+    </div>
+  );
+}
+
 export default function NewRepairPage() {
   const router = useRouter();
-  const contractRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+
+  const docsRef = useRef<HTMLInputElement>(null);
   const photosRef = useRef<HTMLInputElement>(null);
 
   const [districts, setDistricts] = useState<District[]>([]);
@@ -89,7 +166,9 @@ export default function NewRepairPage() {
 
   const [form, setForm] = useState<FormState>({
     title: "",
-    description: "",
+    contractor_name: "",
+    contractor_phone: "",
+    contractor_description: "",
     district: "",
     address: "",
     road_section: "",
@@ -100,6 +179,7 @@ export default function NewRepairPage() {
     geometry: null,
   });
 
+  const [contractorPhoneLocked, setContractorPhoneLocked] = useState(false);
   const [docFiles, setDocFiles] = useState<File[]>([]);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
 
@@ -128,6 +208,17 @@ export default function NewRepairPage() {
     return d.name_ru ?? d.name_kz ?? d.name ?? String(d.id);
   }
 
+  async function uploadDocs(requestId: number, files: File[], docType: string) {
+    for (let i = 0; i < files.length; i++) {
+      const fd = new FormData();
+      fd.append("request", String(requestId));
+      fd.append("doc_type", docType);
+      fd.append("name", files[i].name);
+      fd.append("file", files[i]);
+      await apiUploadForm("/api/v1/road-repair/documents/", fd);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -148,7 +239,10 @@ export default function NewRepairPage() {
       setSubmitStep("Создание заявки…");
       const payload: Record<string, unknown> = {
         title: form.title.trim(),
-        description: form.description.trim(),
+        description: "",
+        contractor_name: form.contractor_name.trim(),
+        contractor_phone: form.contractor_phone.trim(),
+        contractor_description: form.contractor_description.trim(),
         district: Number(form.district),
         address: form.address.trim(),
         road_section: form.road_section.trim(),
@@ -167,19 +261,11 @@ export default function NewRepairPage() {
       });
 
       if (docFiles.length > 0) {
-        for (let i = 0; i < docFiles.length; i++) {
-          setSubmitStep(`Загрузка документов (${i + 1}/${docFiles.length})…`);
-          const fd = new FormData();
-          fd.append("request", String(created.id));
-          fd.append("doc_type", "contract");
-          fd.append("name", docFiles[i].name);
-          fd.append("file", docFiles[i]);
-          await apiUploadForm("/api/v1/road-repair/documents/", fd);
-        }
+        setSubmitStep("Загрузка документов…");
+        await uploadDocs(created.id, docFiles, "contract");
       }
 
       if (photoFiles.length > 0) {
-        setSubmitStep(`Загрузка фото (0/${photoFiles.length})…`);
         for (let i = 0; i < photoFiles.length; i++) {
           setSubmitStep(`Загрузка фото (${i + 1}/${photoFiles.length})…`);
           const fd = new FormData();
@@ -218,11 +304,12 @@ export default function NewRepairPage() {
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
 
-        {/* Section 1 */}
+        {/* Section 1 — General info */}
         <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-6">
           <SectionLabel num={1} title="Общая информация" />
           <div className="space-y-4">
-            <FieldRow label="Название заявки" required>
+
+            <FieldRow label="Наименование проекта" required>
               <input
                 type="text"
                 className={INPUT}
@@ -233,19 +320,83 @@ export default function NewRepairPage() {
                 maxLength={500}
               />
             </FieldRow>
-            <FieldRow label="Описание работ" required>
-              <textarea
-                className={`${TEXTAREA} h-28`}
-                placeholder="Опишите суть и объём предполагаемых работ…"
-                value={form.description}
-                onChange={(e) => set("description", e.target.value)}
-                disabled={submitting}
-              />
-            </FieldRow>
+
+            {/* Customer — read-only from profile */}
+            <div className="grid grid-cols-2 gap-4">
+              <FieldRow label="Заказчик" hint="Заполняется автоматически из профиля">
+                <input
+                  type="text"
+                  className={INPUT_READONLY}
+                  value={user?.organization_name ?? "—"}
+                  readOnly
+                  tabIndex={-1}
+                />
+              </FieldRow>
+              <FieldRow label="Телефон заказчика" hint="Заполняется автоматически из профиля">
+                <input
+                  type="text"
+                  className={INPUT_READONLY}
+                  value={user?.phone ?? "—"}
+                  readOnly
+                  tabIndex={-1}
+                />
+              </FieldRow>
+            </div>
+
+            {/* Contractor */}
+            <div className="pt-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#98A2B3] mb-3">Подрядчик</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FieldRow label="Наименование подрядчика">
+                    <ContractorCombobox
+                      name={form.contractor_name}
+                      onNameChange={(name) => {
+                        set("contractor_name", name);
+                        setContractorPhoneLocked(false);
+                      }}
+                      onSelect={(name, phone) => {
+                        set("contractor_name", name);
+                        set("contractor_phone", phone);
+                        setContractorPhoneLocked(true);
+                        setIsDirty(true);
+                      }}
+                      disabled={submitting}
+                      className={INPUT}
+                    />
+                  </FieldRow>
+                  <FieldRow
+                    label="Телефон подрядчика"
+                    hint={contractorPhoneLocked ? "Заполнено из справочника подрядчиков" : undefined}
+                  >
+                    <input
+                      type="tel"
+                      className={contractorPhoneLocked ? INPUT_READONLY : INPUT}
+                      placeholder="+7 (___) ___-__-__"
+                      value={form.contractor_phone}
+                      onChange={(e) => { if (!contractorPhoneLocked) set("contractor_phone", e.target.value); }}
+                      readOnly={contractorPhoneLocked}
+                      disabled={submitting}
+                      maxLength={30}
+                    />
+                  </FieldRow>
+                </div>
+                <FieldRow label="Описание работ подрядчика">
+                  <textarea
+                    className={`${TEXTAREA} h-24`}
+                    placeholder="Опишите суть и объём работ, выполняемых подрядчиком…"
+                    value={form.contractor_description}
+                    onChange={(e) => set("contractor_description", e.target.value)}
+                    disabled={submitting}
+                  />
+                </FieldRow>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        {/* Section 2 */}
+        {/* Section 2 — Location */}
         <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-6">
           <SectionLabel num={2} title="Место проведения работ" />
           <div className="space-y-4">
@@ -315,7 +466,7 @@ export default function NewRepairPage() {
           </div>
         </div>
 
-        {/* Section 3 */}
+        {/* Section 3 — Dates */}
         <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-6">
           <SectionLabel num={3} title="Сроки проведения работ" />
           <div className="grid grid-cols-2 gap-4">
@@ -341,9 +492,9 @@ export default function NewRepairPage() {
           </div>
         </div>
 
-        {/* Section 4 */}
+        {/* Section 4 — Traffic restriction */}
         <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-6">
-          <SectionLabel num={4} title="Ограничение движения" />
+          <SectionLabel num={4} title="Перекрытие дороги" />
           <div className="space-y-4">
             <label className="flex items-center gap-3 cursor-pointer select-none">
               <input
@@ -354,7 +505,7 @@ export default function NewRepairPage() {
                 disabled={submitting}
               />
               <span className="text-sm text-[#344054]">
-                Работы предполагают ограничение дорожного движения
+                Работы предполагают перекрытие или ограничение дорожного движения
               </span>
             </label>
 
@@ -374,53 +525,17 @@ export default function NewRepairPage() {
 
         {/* Section 5 — Documents */}
         <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-6">
-          <SectionLabel num={5} title="Договор и документы" />
-          <input
-            ref={contractRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.xls,.xlsx"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const picked = Array.from(e.target.files ?? []);
-              if (contractRef.current) contractRef.current.value = "";
-              setDocFiles((prev) => [...prev, ...picked]);
-            }}
+          <SectionLabel num={5} title="Документы" />
+          <UploadZone
+            label="Прикрепите документы"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.dwg,.jpg,.jpeg,.png"
+            acceptLabel="PDF, DOC, DOCX, XLS, DWG, JPG, PNG"
+            files={docFiles}
+            inputRef={docsRef}
+            onAdd={(picked) => { setIsDirty(true); setDocFiles((prev) => [...prev, ...picked]); }}
+            onRemove={(i) => setDocFiles((prev) => prev.filter((_, j) => j !== i))}
+            disabled={submitting}
           />
-
-          {docFiles.length > 0 && (
-            <div className="space-y-2 mb-3">
-              {docFiles.map((f, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-[8px] border border-[#D9E0E8] bg-[#F7F9FC]">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-[#2F80C9] flex-shrink-0" aria-hidden="true">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
-                    <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
-                  </svg>
-                  <span className="text-sm text-[#1D2939] flex-1 min-w-0 truncate">{f.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => setDocFiles((prev) => prev.filter((_, j) => j !== i))}
-                    className="text-[#98A2B3] hover:text-[#D92D20] transition-colors flex-shrink-0"
-                    aria-label="Удалить файл"
-                  >
-                    <XIcon />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => contractRef.current?.click()}
-            className="w-full flex flex-col items-center gap-2 py-6 rounded-[8px] border border-dashed border-[#D9E0E8] text-[#98A2B3] hover:border-[#2F80C9] hover:text-[#2F80C9] transition-colors"
-          >
-            <UploadIcon />
-            <span className="text-sm">
-              {docFiles.length > 0 ? `Добавить ещё документы (${docFiles.length} выбрано)` : "Загрузить документы"}
-            </span>
-            <span className="text-xs">PDF, DOC, DOCX, XLS, XLSX</span>
-          </button>
         </div>
 
         {/* Section 6 — Before photos */}
@@ -434,6 +549,7 @@ export default function NewRepairPage() {
             className="hidden"
             onChange={(e) => {
               const files = Array.from(e.target.files ?? []);
+              setIsDirty(true);
               setPhotoFiles((prev) => [...prev, ...files]);
             }}
           />

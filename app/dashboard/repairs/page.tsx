@@ -12,6 +12,7 @@ type RepairRequest = {
   address: string;
   road_section?: string | null;
   contractor_name?: string | null;
+  contractor_phone?: string | null;
   organization_name?: string | null;
   status: string;
   planned_start_date: string;
@@ -172,12 +173,13 @@ export default function RepairsListPage() {
   const [fEndTo,     setFEndTo]     = useState("");
 
   /* column filters — separate state so they don't share DOM with panel */
-  const [cTitle,      setCTitle]      = useState("");
-  const [cAddress,    setCAddress]    = useState("");
-  const [cContractor, setCContractor] = useState("");
-  const [cStatus,     setCStatus]     = useState("");
-  const [cStart,      setCStart]      = useState("");
-  const [cEnd,        setCEnd]        = useState("");
+  const [cTitle,          setCTitle]          = useState("");
+  const [cAddress,        setCAddress]        = useState("");
+  const [cContractor,     setCContractor]     = useState("");
+  const [cContractorName, setCContractorName] = useState("");
+  const [cStatus,         setCStatus]         = useState("");
+  const [cStart,          setCStart]          = useState("");
+  const [cEnd,            setCEnd]            = useState("");
 
   const [page, setPage]     = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -292,11 +294,11 @@ export default function RepairsListPage() {
 
   function reset() {
     setFTitle(""); setFStatus(""); setFDistrict(""); setFStartFrom(""); setFEndTo("");
-    setCTitle(""); setCAddress(""); setCContractor(""); setCStatus(""); setCStart(""); setCEnd("");
+    setCTitle(""); setCAddress(""); setCContractor(""); setCContractorName(""); setCStatus(""); setCStart(""); setCEnd("");
     setPage(1);
   }
 
-  const anyFilter = fTitle || fStatus || fDistrict || fStartFrom || fEndTo || cTitle || cAddress || cContractor || cStatus || cStart || cEnd;
+  const anyFilter = fTitle || fStatus || fDistrict || fStartFrom || fEndTo || cTitle || cAddress || cContractor || cContractorName || cStatus || cStart || cEnd;
 
   function tabCount(t: TabId) { return all.filter((r) => tabFilter(r, t)).length; }
 
@@ -320,6 +322,7 @@ export default function RepairsListPage() {
     if (cTitle && !r.title.toLowerCase().includes(cTitle.toLowerCase()) && !(r.road_section ?? "").toLowerCase().includes(cTitle.toLowerCase())) return false;
     if (cAddress    && !r.address.toLowerCase().includes(cAddress.toLowerCase())) return false;
     if (cContractor && !(r.organization_name ?? "").toLowerCase().includes(cContractor.toLowerCase())) return false;
+    if (cContractorName && !(r.contractor_name ?? "").toLowerCase().includes(cContractorName.toLowerCase())) return false;
     if (cStatus && r.status !== cStatus) return false;
     if (cStart && r.planned_start_date < cStart) return false;
     if (cEnd   && r.planned_end_date   > cEnd)   return false;
@@ -528,6 +531,21 @@ export default function RepairsListPage() {
                     </div>
                   </th>
 
+                  {/* Подрядчик */}
+                  <th className="text-left px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs align-top min-w-[140px]">
+                    <span className="block mb-1.5 whitespace-nowrap">Подрядчик</span>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#C4CBD8] pointer-events-none"><SearchIcon /></span>
+                      <input
+                        type="text"
+                        placeholder="Поиск…"
+                        value={cContractorName}
+                        onChange={(e) => { setCContractorName(e.target.value); setPage(1); }}
+                        className="w-full h-7 pl-7 pr-2 rounded-[5px] border border-[#E4EAF2] bg-white text-xs text-[#1D2939] placeholder:text-[#C4CBD8] outline-none focus:border-[#2F80C9] focus:ring-1 focus:ring-[#2F80C9]/20 font-normal"
+                      />
+                    </div>
+                  </th>
+
                   {/* Начало */}
                   <th className="text-left px-4 pt-3 pb-2 font-semibold text-[#667085] text-xs align-top">
                     <span className="block mb-1.5 whitespace-nowrap">Начало</span>
@@ -580,7 +598,7 @@ export default function RepairsListPage() {
               <tbody>
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="py-16 text-center">
+                    <td colSpan={10} className="py-16 text-center">
                       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" className="mx-auto mb-3 text-[#D9E0E8]" aria-hidden="true">
                         <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5"/>
                         <path d="M8 12h8M8 8h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -636,6 +654,13 @@ export default function RepairsListPage() {
                       <td className="px-4 py-4 max-w-[180px]">
                         {req.organization_name
                           ? <span className="text-[#344054] line-clamp-2 text-sm">{req.organization_name}</span>
+                          : <span className="text-[#C4CBD8]">—</span>}
+                      </td>
+
+                      {/* Подрядчик */}
+                      <td className="px-4 py-4 max-w-[180px]">
+                        {req.contractor_name
+                          ? <span className="text-[#344054] line-clamp-2 text-sm">{req.contractor_name}</span>
                           : <span className="text-[#C4CBD8]">—</span>}
                       </td>
 
