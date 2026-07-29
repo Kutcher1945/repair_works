@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { apiFetch } from "../../lib/auth";
+import { useAuth } from "../../context/auth-context";
 
 /* ── Types ──────────────────────────────────────────────────────── */
 type RepairRequest = {
@@ -197,13 +198,15 @@ export default function RepairsListPage() {
   const [confirmDelete, setConfirmDelete] = useState<RepairRequest | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
+  const { user: currentUser } = useAuth();
+
   useEffect(() => {
     const toArr = <T,>(r: { results?: T[] } | T[]) =>
       Array.isArray(r) ? r : (r as { results?: T[] }).results ?? [];
 
     Promise.all([
-      apiFetch<{ results?: RepairRequest[] } | RepairRequest[]>("/api/v1/road-repair/requests/?page_size=1000"),
-      apiFetch<{ results?: RepairRequest[] } | RepairRequest[]>("/api/v1/road-repair/requests/?page_size=1000&is_deleted=true").catch(() => [] as RepairRequest[]),
+      apiFetch<{ results?: RepairRequest[] } | RepairRequest[]>("/api/v1/road-repair/requests/?limit=1000&offset=0"),
+      apiFetch<{ results?: RepairRequest[] } | RepairRequest[]>("/api/v1/road-repair/requests/?limit=1000&offset=0&is_deleted=true").catch(() => [] as RepairRequest[]),
       apiFetch<{ results?: District[] } | District[]>("/api/v1/repair-works/ref_district/"),
     ])
       .then(([rd, rdDel, dd]) => {
@@ -455,12 +458,14 @@ export default function RepairsListPage() {
           ) : (
             <span />
           )}
-          <Link
-            href="/dashboard/repairs/new"
-            className="inline-flex items-center gap-2 h-9 px-4 rounded-[6px] bg-[#2F80C9] text-white text-sm font-medium hover:bg-[#1E6BAD] transition-colors"
-          >
-            <PlusIcon /> Создать заявку
-          </Link>
+          {currentUser?.role !== "admin" && (
+            <Link
+              href="/dashboard/repairs/new"
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-[6px] bg-[#2F80C9] text-white text-sm font-medium hover:bg-[#1E6BAD] transition-colors"
+            >
+              <PlusIcon /> Создать заявку
+            </Link>
+          )}
         </div>
 
         {/* Loading */}

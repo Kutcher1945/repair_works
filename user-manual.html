@@ -1,0 +1,1596 @@
+<title>Руководство пользователя — Ремонтные работы</title>
+<style>
+/* ── Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --navy:       #12345B;
+  --navy-mid:   #1a4070;
+  --blue:       #2F80C9;
+  --blue-light: #DCECF8;
+  --blue-pale:  #F0F7FF;
+  --text-1:     #1D2939;
+  --text-2:     #344054;
+  --text-3:     #667085;
+  --text-4:     #98A2B3;
+  --border:     #D9E0E8;
+  --border-lt:  #E9EEF4;
+  --surface:    #F7F9FC;
+  --surface-2:  #EEF3F8;
+  --white:      #FFFFFF;
+  --radius:     6px;
+
+  --status-draft-bg:    #F2F4F7; --status-draft-tx:    #667085;
+  --status-review-bg:   #FFF7E6; --status-review-tx:   #B76E00;
+  --status-revise-bg:   #FFF2F2; --status-revise-tx:   #D92D20;
+  --status-active-bg:   #E6F6EF; --status-active-tx:   #027A48;
+  --status-done-bg:     #DCECF8; --status-done-tx:     #12345B;
+  --status-cancel-bg:   #F2F4F7; --status-cancel-tx:   #98A2B3;
+
+  --sidebar-w: 256px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --navy:       #1a4a7a;
+    --navy-mid:   #1e5491;
+    --blue:       #4fa3e0;
+    --blue-light: #1a3250;
+    --blue-pale:  #112236;
+    --text-1:     #E8EDF3;
+    --text-2:     #C5D0DE;
+    --text-3:     #8FA3B8;
+    --text-4:     #5A7090;
+    --border:     #2A3A4E;
+    --border-lt:  #223040;
+    --surface:    #0E1A28;
+    --surface-2:  #142030;
+    --white:      #18263A;
+
+    --status-draft-bg:    #1E2530; --status-draft-tx:    #8FA3B8;
+    --status-review-bg:   #2A2010; --status-review-tx:   #E8A945;
+    --status-revise-bg:   #2A1010; --status-revise-tx:   #F07070;
+    --status-active-bg:   #0F2A1E; --status-active-tx:   #4CC98A;
+    --status-done-bg:     #112236; --status-done-tx:     #7DC8F5;
+    --status-cancel-bg:   #1E2530; --status-cancel-tx:   #5A7090;
+  }
+}
+
+:root[data-theme="light"] {
+  --navy:       #12345B; --navy-mid:   #1a4070; --blue:       #2F80C9;
+  --blue-light: #DCECF8; --blue-pale:  #F0F7FF;
+  --text-1:     #1D2939; --text-2:     #344054; --text-3:     #667085; --text-4:     #98A2B3;
+  --border:     #D9E0E8; --border-lt:  #E9EEF4;
+  --surface:    #F7F9FC; --surface-2:  #EEF3F8; --white:      #FFFFFF;
+  --status-draft-bg:  #F2F4F7; --status-draft-tx:  #667085;
+  --status-review-bg: #FFF7E6; --status-review-tx: #B76E00;
+  --status-revise-bg: #FFF2F2; --status-revise-tx: #D92D20;
+  --status-active-bg: #E6F6EF; --status-active-tx: #027A48;
+  --status-done-bg:   #DCECF8; --status-done-tx:   #12345B;
+  --status-cancel-bg: #F2F4F7; --status-cancel-tx: #98A2B3;
+}
+
+:root[data-theme="dark"] {
+  --navy:       #1a4a7a; --navy-mid:   #1e5491; --blue:       #4fa3e0;
+  --blue-light: #1a3250; --blue-pale:  #112236;
+  --text-1:     #E8EDF3; --text-2:     #C5D0DE; --text-3:     #8FA3B8; --text-4:     #5A7090;
+  --border:     #2A3A4E; --border-lt:  #223040;
+  --surface:    #0E1A28; --surface-2:  #142030; --white:      #18263A;
+  --status-draft-bg:  #1E2530; --status-draft-tx:  #8FA3B8;
+  --status-review-bg: #2A2010; --status-review-tx: #E8A945;
+  --status-revise-bg: #2A1010; --status-revise-tx: #F07070;
+  --status-active-bg: #0F2A1E; --status-active-tx: #4CC98A;
+  --status-done-bg:   #112236; --status-done-tx:   #7DC8F5;
+  --status-cancel-bg: #1E2530; --status-cancel-tx: #5A7090;
+}
+
+/* ── Reset & base ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text-1);
+  background: var(--surface);
+  min-height: 100vh;
+}
+
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+img { max-width: 100%; }
+
+/* ── Layout shell ───────────────────────────────────────────────────── */
+.shell {
+  display: flex;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-brand {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-brand-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  margin-bottom: 4px;
+}
+
+.sidebar-brand-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.2;
+}
+
+.sidebar-nav {
+  padding: 16px 0 24px;
+  flex: 1;
+}
+
+.sidebar-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  padding: 0 18px;
+  margin: 16px 0 6px;
+}
+.sidebar-section-label:first-child { margin-top: 0; }
+
+.sidebar-nav a {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 18px;
+  font-size: 13px;
+  color: var(--text-2);
+  border-left: 2px solid transparent;
+  transition: color .14s, border-color .14s, background .14s;
+  line-height: 1.4;
+}
+
+.sidebar-nav a:hover {
+  color: var(--blue);
+  background: var(--blue-pale);
+  text-decoration: none;
+}
+
+.sidebar-nav a.active {
+  color: var(--blue);
+  border-left-color: var(--blue);
+  background: var(--blue-pale);
+  font-weight: 600;
+}
+
+.sidebar-nav .nav-num {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 16px;
+}
+
+.sidebar-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+/* ── Main content ───────────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  min-width: 0;
+  padding: 0 48px 80px;
+  max-width: calc(100% - var(--sidebar-w));
+}
+
+/* ── Doc header ─────────────────────────────────────────────────────── */
+.doc-header {
+  padding: 40px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+
+.doc-header-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 10px;
+}
+
+.doc-header h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.25;
+  margin-bottom: 12px;
+}
+
+.doc-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.doc-header-meta span { display: flex; align-items: center; gap: 4px; }
+
+/* ── Sections ───────────────────────────────────────────────────────── */
+.section {
+  margin-bottom: 56px;
+  scroll-margin-top: 24px;
+}
+
+.section h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.section h2 .sec-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--blue);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .04em;
+  min-width: 28px;
+}
+
+.section h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 28px 0 10px;
+}
+
+.section h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+  margin: 20px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: 11px;
+}
+
+.section p {
+  margin-bottom: 12px;
+  color: var(--text-2);
+}
+
+.section ul, .section ol {
+  padding-left: 20px;
+  margin-bottom: 14px;
+}
+
+.section li {
+  margin-bottom: 5px;
+  color: var(--text-2);
+}
+
+.section li::marker { color: var(--blue); }
+
+/* ── Cards ──────────────────────────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.card-sm {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.card-sm strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.card-sm p {
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin: 0;
+}
+
+/* ── Status badges ──────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-draft  { background: var(--status-draft-bg);  color: var(--status-draft-tx); }
+.badge-review { background: var(--status-review-bg); color: var(--status-review-tx); }
+.badge-revise { background: var(--status-revise-bg); color: var(--status-revise-tx); }
+.badge-active { background: var(--status-active-bg); color: var(--status-active-tx); }
+.badge-done   { background: var(--status-done-bg);   color: var(--status-done-tx); }
+.badge-cancel { background: var(--status-cancel-bg); color: var(--status-cancel-tx); }
+
+/* ── Status table ───────────────────────────────────────────────────── */
+.status-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.status-table th {
+  background: var(--surface);
+  text-align: left;
+  padding: 9px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.status-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-lt);
+  color: var(--text-2);
+  vertical-align: top;
+}
+
+.status-table tr:last-child td { border-bottom: none; }
+.status-table td:first-child { white-space: nowrap; }
+
+/* ── Flow diagram ───────────────────────────────────────────────────── */
+.flow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  flex-wrap: wrap;
+  margin: 20px 0;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px 20px;
+  row-gap: 12px;
+}
+
+.flow-step {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.flow-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.flow-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.flow-desc {
+  font-size: 10.5px;
+  color: var(--text-4);
+  text-align: center;
+  max-width: 88px;
+}
+
+.flow-arrow {
+  margin: 0 8px;
+  color: var(--border);
+  font-size: 18px;
+  margin-bottom: 18px;
+  flex-shrink: 0;
+}
+
+.flow-branch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* ── Info boxes ─────────────────────────────────────────────────────── */
+.info-box {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 7px;
+  margin: 16px 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.info-box.note   { background: var(--blue-pale);  border-left: 3px solid var(--blue); }
+.info-box.warn   { background: #FFF7E6;            border-left: 3px solid #F59E42; }
+.info-box.admin  { background: var(--blue-light);  border-left: 3px solid var(--navy); }
+
+.info-box-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+.info-box p { margin: 0; }
+
+/* ── Step list ──────────────────────────────────────────────────────── */
+.steps {
+  list-style: none;
+  padding: 0;
+  counter-reset: step;
+  margin-bottom: 20px;
+}
+
+.steps li {
+  counter-increment: step;
+  display: flex;
+  gap: 14px;
+  margin-bottom: 12px;
+  color: var(--text-2);
+}
+
+.steps li::before {
+  content: counter(step);
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+/* ── Key-value list ─────────────────────────────────────────────────── */
+.kv-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  font-size: 13.5px;
+}
+
+.kv-list dt {
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.kv-list dd {
+  color: var(--text-3);
+}
+
+/* ── Role table ─────────────────────────────────────────────────────── */
+.role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.role-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+
+.role-card h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.role-card ul {
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin: 0;
+  padding-left: 18px;
+}
+
+.role-card li { margin-bottom: 3px; }
+
+/* ── Feature highlight ──────────────────────────────────────────────── */
+.feature-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.feature-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--blue-pale);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.feature-icon svg { color: var(--blue); }
+
+.feature-body strong {
+  display: block;
+  font-size: 13.5px;
+  color: var(--text-1);
+  margin-bottom: 3px;
+}
+
+.feature-body p {
+  font-size: 13px;
+  color: var(--text-3);
+  margin: 0;
+}
+
+/* ── Divider ────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 32px 0;
+}
+
+/* ── Label chip ─────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-family: "SF Mono", "Fira Mono", "Cascadia Code", monospace;
+}
+
+/* ── Top nav bar (mobile) ───────────────────────────────────────────── */
+.mobile-nav {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-nav-title { font-size: 14px; font-weight: 700; color: var(--navy); }
+
+/* ── Theme toggle ───────────────────────────────────────────────────── */
+.theme-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 200;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .2s;
+}
+.theme-btn:hover { background: var(--surface); }
+.theme-btn svg { color: var(--text-3); width: 16px; height: 16px; }
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .content { padding: 0 18px 60px; max-width: 100%; }
+  .mobile-nav { display: flex; }
+  .role-grid { grid-template-columns: 1fr; }
+  .card-grid { grid-template-columns: 1fr; }
+  .doc-header h1 { font-size: 22px; }
+  .flow { flex-direction: column; }
+  .flow-arrow { transform: rotate(90deg); }
+  .kv-list { grid-template-columns: 1fr; }
+  .kv-list dt::after { content: ":"; }
+}
+
+/* ── Print ──────────────────────────────────────────────────────────── */
+@media print {
+  .sidebar, .mobile-nav, .theme-btn { display: none !important; }
+  .content { max-width: 100%; padding: 0; }
+  .shell { display: block; }
+  .section { break-inside: avoid-page; }
+}
+</style>
+
+<!-- Mobile top nav -->
+<nav class="mobile-nav">
+  <span class="mobile-nav-title">Руководство пользователя</span>
+</nav>
+
+<!-- Theme toggle -->
+<button class="theme-btn" id="themeBtn" title="Переключить тему" aria-label="Переключить тему">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="5"/>
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+  </svg>
+</button>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-title">Документация</div>
+      <div class="sidebar-brand-name">Ремонтные работы</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#overview" class="active"><span class="nav-num">01</span>Обзор системы</a>
+      <a href="#login"><span class="nav-num">02</span>Вход в систему</a>
+      <a href="#interface"><span class="nav-num">03</span>Интерфейс</a>
+      <a href="#dashboard"><span class="nav-num">04</span>Главная страница</a>
+      <a href="#repairs-list"><span class="nav-num">05</span>Список заявок</a>
+      <a href="#create"><span class="nav-num">06</span>Создание заявки</a>
+      <a href="#detail"><span class="nav-num">07</span>Просмотр заявки</a>
+      <a href="#edit"><span class="nav-num">08</span>Редактирование</a>
+      <a href="#lifecycle"><span class="nav-num">09</span>Жизненный цикл</a>
+      <a href="#map"><span class="nav-num">10</span>Карта</a>
+      <a href="#reports"><span class="nav-num">11</span>Отчёты</a>
+      <a href="#notifications"><span class="nav-num">12</span>Уведомления</a>
+      <a href="#users"><span class="nav-num">13</span>Пользователи</a>
+      <a href="#profile"><span class="nav-num">14</span>Личный кабинет</a>
+      <a href="#roles"><span class="nav-num">15</span>Роли и доступ</a>
+    </nav>
+    <div class="sidebar-footer">
+      Версия системы 1.0 · 2026
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="content">
+    <!-- Doc header -->
+    <header class="doc-header">
+      <div class="doc-header-eyebrow">Руководство пользователя</div>
+      <h1>Система управления ремонтными работами</h1>
+      <div class="doc-header-meta">
+        <span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          Версия 1.0, 2026
+        </span>
+        <span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Для всех пользователей
+        </span>
+      </div>
+    </header>
+
+    <!-- 1. Overview -->
+    <section class="section" id="overview">
+      <h2><span class="sec-num">01</span>Обзор системы</h2>
+      <p>
+        <strong>Ремонтные работы</strong> — информационная система для регистрации, отслеживания и контроля
+        дорожно-ремонтных работ. Система позволяет организациям-заказчикам подавать заявки на проведение
+        ремонтных работ, а сотрудникам ЦОДД — рассматривать их и управлять жизненным циклом каждой заявки.
+      </p>
+
+      <div class="card-grid">
+        <div class="card-sm">
+          <strong>Регистрация заявок</strong>
+          <p>Создание заявок с описанием работ, геолокацией, сроками и прикреплёнными документами.</p>
+        </div>
+        <div class="card-sm">
+          <strong>Отслеживание статусов</strong>
+          <p>Прозрачный жизненный цикл заявки от черновика до завершения с историей изменений.</p>
+        </div>
+        <div class="card-sm">
+          <strong>Карта работ</strong>
+          <p>Интерактивная карта с нанесёнными объектами активных и завершённых ремонтных работ.</p>
+        </div>
+        <div class="card-sm">
+          <strong>Документооборот</strong>
+          <p>Хранение договоров, актов выполненных работ, доп. соглашений и фотоматериалов.</p>
+        </div>
+        <div class="card-sm">
+          <strong>Уведомления</strong>
+          <p>Автоматические уведомления при изменении статуса или поступлении новых заявок.</p>
+        </div>
+        <div class="card-sm">
+          <strong>Отчётность</strong>
+          <p>Сводные данные по заявкам с фильтрацией по статусу, срокам и просроченности.</p>
+        </div>
+      </div>
+
+      <h3>Технические требования</h3>
+      <dl class="kv-list">
+        <dt>Браузер</dt>
+        <dd>Google Chrome 100+, Mozilla Firefox 100+, Safari 15+, Microsoft Edge 100+</dd>
+        <dt>Интернет</dt>
+        <dd>Постоянное подключение обязательно</dd>
+        <dt>Разрешение экрана</dt>
+        <dd>Минимум 1024 × 768 пикселей (рекомендуется 1280 × 800 и выше)</dd>
+      </dl>
+    </section>
+
+    <!-- 2. Login -->
+    <section class="section" id="login">
+      <h2><span class="sec-num">02</span>Вход в систему</h2>
+      <p>Доступ к системе осуществляется через браузер. На стартовой странице необходимо ввести учётные данные.</p>
+
+      <ol class="steps">
+        <li>Откройте адрес системы в браузере.</li>
+        <li>Введите ваш <strong>email</strong> и <strong>пароль</strong> в соответствующие поля.</li>
+        <li>Нажмите кнопку <strong>«Войти»</strong>.</li>
+        <li>После успешной аутентификации вы будете перенаправлены на главную страницу.</li>
+      </ol>
+
+      <div class="info-box note">
+        <span class="info-box-icon">ℹ</span>
+        <p>Если у вас нет учётных данных, обратитесь к администратору системы. Самостоятельная регистрация не предусмотрена.</p>
+      </div>
+
+      <div class="info-box warn">
+        <span class="info-box-icon">⚠</span>
+        <p>Сессия остаётся активной до явного выхода из системы. При работе на общем компьютере всегда завершайте сессию через кнопку <strong>«Выйти»</strong> в нижней части боковой панели.</p>
+      </div>
+    </section>
+
+    <!-- 3. Interface -->
+    <section class="section" id="interface">
+      <h2><span class="sec-num">03</span>Интерфейс</h2>
+      <p>Интерфейс состоит из трёх основных зон: боковой панели навигации, заголовка и рабочей области.</p>
+
+      <h3>Боковая панель</h3>
+      <p>
+        Боковая панель расположена слева и содержит основное навигационное меню.
+        Она может быть <strong>свёрнута</strong> до иконок — для этого нажмите на кнопку-стрелку,
+        которая появляется на правом крае панели при наведении. Состояние (свёрнута/развёрнута)
+        сохраняется между сессиями.
+      </p>
+
+      <p>В нижней части боковой панели отображается:</p>
+      <ul>
+        <li>Имя и email текущего пользователя</li>
+        <li>Название организации</li>
+        <li>Кнопка выхода из системы</li>
+      </ul>
+
+      <h3>Разделы навигации</h3>
+      <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+        <div class="card-sm"><strong>Главная</strong><p>Сводная статистика и последние заявки</p></div>
+        <div class="card-sm"><strong>Заявки</strong><p>Полный список заявок с фильтрацией</p></div>
+        <div class="card-sm"><strong>Карта</strong><p>Визуализация объектов на карте</p></div>
+        <div class="card-sm"><strong>Отчёты</strong><p>Аналитика и сводные данные</p></div>
+        <div class="card-sm"><strong>Пользователи</strong><p>Управление учётными записями <span class="chip">admin</span></p></div>
+        <div class="card-sm"><strong>Личный кабинет</strong><p>Профиль, смена пароля</p></div>
+        <div class="card-sm"><strong>Настройки</strong><p>Параметры системы</p></div>
+      </div>
+
+      <div class="info-box admin">
+        <span class="info-box-icon">🔒</span>
+        <p>Раздел <strong>«Пользователи»</strong> отображается только для учётных записей с ролью <strong>Администратор</strong>.</p>
+      </div>
+
+      <h3>Заголовок (шапка)</h3>
+      <p>Верхняя строка содержит:</p>
+      <ul>
+        <li><strong>Название текущего раздела</strong> — слева</li>
+        <li><strong>Колокольчик уведомлений</strong> — с числовым счётчиком непрочитанных</li>
+        <li><strong>Аватар пользователя</strong> — ссылка на профиль</li>
+      </ul>
+    </section>
+
+    <!-- 4. Dashboard -->
+    <section class="section" id="dashboard">
+      <h2><span class="sec-num">04</span>Главная страница</h2>
+      <p>
+        Главная страница предоставляет моментальный срез текущего состояния работ и содержит
+        приветственный баннер, статистику и таблицу последних заявок.
+      </p>
+
+      <h3>Карточки статистики</h3>
+      <div class="card-grid">
+        <div class="card-sm"><strong>Всего заявок</strong><p>Общее количество заявок в системе (без удалённых)</p></div>
+        <div class="card-sm"><strong>Активных</strong><p>Заявки в статусе «Активный ремонт»</p></div>
+        <div class="card-sm"><strong>На проверке</strong><p>Заявки, ожидающие рассмотрения ЦОДД</p></div>
+        <div class="card-sm"><strong>Завершено</strong><p>Успешно закрытые заявки</p></div>
+      </div>
+
+      <h3>Последние заявки</h3>
+      <p>
+        Таблица под карточками отображает 5 самых последних заявок с полями:
+        номер, наименование, организация, статус и дата создания.
+        Клик по строке открывает карточку заявки.
+      </p>
+
+      <h3>Кнопка «Новая заявка»</h3>
+      <p>
+        Кнопка <strong>«Новая заявка»</strong> в правом углу приветственного баннера мгновенно
+        открывает форму создания заявки. Это самый быстрый способ начать работу.
+      </p>
+    </section>
+
+    <!-- 5. Repairs list -->
+    <section class="section" id="repairs-list">
+      <h2><span class="sec-num">05</span>Список заявок</h2>
+      <p>
+        Раздел <strong>«Заявки»</strong> — основное рабочее пространство. Здесь отображаются
+        все заявки, доступные текущему пользователю, с расширенными возможностями фильтрации и сортировки.
+      </p>
+
+      <h3>Вкладки</h3>
+      <p>Список разделён на вкладки по смысловым группам:</p>
+      <table class="status-table">
+        <thead>
+          <tr>
+            <th>Вкладка</th>
+            <th>Содержимое</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Все</td><td>Все активные заявки (кроме удалённых)</td></tr>
+          <tr><td>Внимание</td><td>Просроченные или истекающие заявки, требующие немедленного реагирования</td></tr>
+          <tr><td>Истекают</td><td>Заявки, у которых до планового окончания осталось мало времени</td></tr>
+          <tr><td>Просроченные</td><td>Заявки, у которых плановая дата окончания уже прошла</td></tr>
+          <tr><td>Завершённые</td><td>Заявки со статусом «Завершён»</td></tr>
+          <tr><td>Удалённые</td><td>Мягко удалённые заявки (доступны для восстановления)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Фильтры и поиск</h3>
+      <p>Над таблицей расположена панель фильтров:</p>
+      <ul>
+        <li><strong>Строка поиска</strong> — ищет по наименованию, адресу, организации и участку дороги</li>
+        <li><strong>Статус</strong> — выпадающий список для фильтрации по одному из статусов</li>
+        <li><strong>Район</strong> — выпадающий список для фильтрации по административному району</li>
+        <li><strong>Дата</strong> — диапазон дат начала работ (от/до)</li>
+      </ul>
+      <p>
+        Дополнительная фильтрация доступна непосредственно в заголовках столбцов таблицы:
+        можно вводить текст или выбирать значения для фильтрации по каждому столбцу отдельно.
+      </p>
+
+      <h3>Предпросмотр заявки</h3>
+      <p>
+        При <strong>наведении курсора</strong> на строку таблицы появляется всплывающая карточка с ключевыми
+        данными заявки: статус, заголовок, адрес, даты, подрядчик, количество оставшихся или просроченных дней,
+        а также превью до 3 фотографий (загружаются автоматически).
+      </p>
+
+      <h3>Действия над заявкой</h3>
+      <p>
+        В конце каждой строки есть кнопка меню (<strong>⋯</strong>), которая открывает контекстное меню
+        с доступными действиями:
+      </p>
+      <ul>
+        <li><strong>Просмотр</strong> — перейти на страницу просмотра заявки</li>
+        <li><strong>Редактировать</strong> — перейти на форму редактирования</li>
+        <li><strong>Удалить</strong> — мягкое удаление (заявка перемещается во вкладку «Удалённые»)</li>
+        <li><strong>Восстановить</strong> — доступно для удалённых заявок</li>
+      </ul>
+
+      <div class="info-box note">
+        <span class="info-box-icon">ℹ</span>
+        <p>Удаление в системе является <strong>мягким</strong> (soft delete). Заявка не уничтожается безвозвратно — её всегда можно восстановить из вкладки «Удалённые».</p>
+      </div>
+
+      <h3>Пагинация</h3>
+      <p>
+        В нижней части таблицы расположены кнопки страниц и переключатель количества записей на странице:
+        <span class="chip">10</span> <span class="chip">20</span> <span class="chip">50</span> записей.
+      </p>
+    </section>
+
+    <!-- 6. Create -->
+    <section class="section" id="create">
+      <h2><span class="sec-num">06</span>Создание заявки</h2>
+      <p>
+        Форма создания открывается по кнопке <strong>«Новая заявка»</strong> (главная страница или кнопка
+        в разделе «Заявки»). Заявка сохраняется в статусе <span class="badge badge-draft">Черновик</span>
+        и не отправляется на проверку до явного изменения статуса.
+      </p>
+
+      <h3>Разделы формы</h3>
+
+      <h4>1. Основная информация</h4>
+      <dl class="kv-list">
+        <dt>Наименование</dt><dd>Краткое описание работ <span style="color:var(--status-revise-tx)">*</span></dd>
+        <dt>Описание</dt><dd>Подробное описание планируемых работ</dd>
+        <dt>Район</dt><dd>Административный район города <span style="color:var(--status-revise-tx)">*</span></dd>
+        <dt>Адрес</dt><dd>Полный адрес объекта</dd>
+        <dt>Участок дороги</dt><dd>Название или описание участка дороги</dd>
+      </dl>
+
+      <h4>2. Подрядчик</h4>
+      <p>
+        Поле <strong>«Подрядчик»</strong> — это умный автодополнитель (combobox).
+        При вводе названия система выполняет поиск по реестру подрядчиков и предлагает
+        совпадающие варианты. При выборе подрядчика из списка поле <strong>«Телефон»</strong>
+        заполняется автоматически из сохранённых данных.
+      </p>
+      <div class="info-box note">
+        <span class="info-box-icon">ℹ</span>
+        <p>При сохранении заявки с новым подрядчиком (которого нет в реестре) его данные автоматически добавляются в справочник для использования в будущих заявках.</p>
+      </div>
+
+      <h4>3. Сроки проведения работ</h4>
+      <dl class="kv-list">
+        <dt>Начало</dt><dd>Плановая дата начала работ <span style="color:var(--status-revise-tx)">*</span></dd>
+        <dt>Окончание</dt><dd>Плановая дата завершения работ <span style="color:var(--status-revise-tx)">*</span></dd>
+      </dl>
+
+      <h4>4. Ограничение движения</h4>
+      <p>
+        Переключатель <strong>«Ограничение движения»</strong> указывает, будут ли работы сопровождаться
+        закрытием или сужением проезжей части. При активации появляется текстовое поле для описания
+        характера ограничений.
+      </p>
+
+      <h4>5. Геолокация объекта</h4>
+      <p>
+        Интерактивный инструмент рисования на карте позволяет обозначить точное местоположение и
+        контур объекта. Поддерживаются следующие типы геометрии:
+      </p>
+      <ul>
+        <li><strong>Точка</strong> — для точечных объектов</li>
+        <li><strong>Линия</strong> — для участков дороги</li>
+        <li><strong>Полигон</strong> — для площадных объектов</li>
+      </ul>
+      <p>
+        Нарисованную геометрию можно редактировать и удалять. Указание геолокации делает заявку
+        видимой на карте после её активации.
+      </p>
+
+      <h4>6. Документы</h4>
+      <p>
+        К заявке можно прикрепить файлы следующих типов:
+      </p>
+      <table class="status-table">
+        <thead><tr><th>Тип документа</th><th>Описание</th></tr></thead>
+        <tbody>
+          <tr><td>Договор</td><td>Основной договор на проведение работ</td></tr>
+          <tr><td>Доп. соглашение</td><td>Дополнительное соглашение к договору</td></tr>
+          <tr><td>Акт выполненных работ</td><td>Акт приёмки завершённых работ</td></tr>
+          <tr><td>Документ о продлении</td><td>Основание для изменения сроков</td></tr>
+        </tbody>
+      </table>
+      <p>Поддерживаемые форматы: PDF, DOCX, XLS, XLSX, JPG, PNG. Файлы можно удалять до сохранения.</p>
+
+      <h4>7. Фотографии «До начала работ»</h4>
+      <p>
+        При создании заявки можно загрузить фотографии объекта <strong>до начала ремонта</strong>.
+        Фотографии отображаются в виде превью с возможностью удаления.
+        После сохранения заявки дополнительные фазы фотографий (в процессе, после завершения)
+        добавляются на странице редактирования.
+      </p>
+
+      <h3>Сохранение формы</h3>
+      <ol class="steps">
+        <li>Заполните обязательные поля (помечены звёздочкой).</li>
+        <li>Нажмите кнопку <strong>«Сохранить черновик»</strong> для сохранения без отправки.</li>
+        <li>Или нажмите <strong>«Подать на проверку»</strong> для немедленной отправки в ЦОДД.</li>
+      </ol>
+
+      <div class="info-box warn">
+        <span class="info-box-icon">⚠</span>
+        <p>При попытке покинуть страницу с несохранёнными изменениями система отобразит предупреждение. Убедитесь, что сохранили данные перед переходом.</p>
+      </div>
+    </section>
+
+    <!-- 7. Detail view -->
+    <section class="section" id="detail">
+      <h2><span class="sec-num">07</span>Просмотр заявки</h2>
+      <p>
+        Страница просмотра открывается по клику на строку таблицы или пункт «Просмотр» в контекстном меню.
+        Страница доступна только для чтения и содержит всю информацию по заявке.
+      </p>
+
+      <div class="feature-row">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </div>
+        <div class="feature-body">
+          <strong>Основные данные</strong>
+          <p>Статус, наименование, организация, район, адрес, участок дороги, сроки, информация об ограничении движения, подрядчик.</p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div class="feature-body">
+          <strong>Документы</strong>
+          <p>Список прикреплённых документов с типом, именем и датой загрузки. Доступны для скачивания.</p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <div class="feature-body">
+          <strong>Фотографии</strong>
+          <p>Три фазы: «До начала работ», «В процессе», «После завершения». Фото открываются в лайтбоксе по клику.</p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="feature-body">
+          <strong>История статусов</strong>
+          <p>Хронологический журнал всех переходов статусов: кто, когда и с каким комментарием изменил статус.</p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="feature-body">
+          <strong>Комментарии</strong>
+          <p>Обмен сообщениями между заказчиком и ЦОДД в рамках конкретной заявки.</p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        </div>
+        <div class="feature-body">
+          <strong>Карта объекта</strong>
+          <p>Встроенный виджет карты с нанесённой геометрией объекта (если указана при создании).</p>
+        </div>
+      </div>
+
+      <h3>Изменение статуса</h3>
+      <p>
+        На странице просмотра (для авторизованных пользователей) доступны кнопки смены статуса,
+        соответствующие допустимым переходам для текущего состояния заявки.
+        Подробнее — в разделе <a href="#lifecycle">«Жизненный цикл»</a>.
+      </p>
+    </section>
+
+    <!-- 8. Edit -->
+    <section class="section" id="edit">
+      <h2><span class="sec-num">08</span>Редактирование заявки</h2>
+      <p>
+        Форма редактирования имеет ту же структуру, что и форма создания, но содержит
+        предзаполненные данные из существующей заявки.
+      </p>
+
+      <h3>Работа с документами</h3>
+      <p>
+        На вкладке редактирования отображаются уже прикреплённые документы.
+        Рядом с каждым документом есть кнопка удаления — она удаляет файл немедленно
+        (после подтверждения) и не требует сохранения формы.
+        Новые файлы загружаются через зону перетаскивания и применяются при сохранении формы.
+      </p>
+
+      <h3>Работа с фотографиями</h3>
+      <p>
+        При редактировании доступны три вкладки фотографий:
+      </p>
+      <ul>
+        <li><strong>До начала работ</strong> — фото до начала ремонта</li>
+        <li><strong>В процессе</strong> — фото хода работ</li>
+        <li><strong>После завершения</strong> — финальные фото</li>
+      </ul>
+      <p>
+        Существующие фото отображаются с превью и кнопкой удаления.
+        Новые загружаются через ту же зону загрузки.
+      </p>
+
+      <h3>Запрос на продление сроков</h3>
+      <p>
+        Если требуется изменить плановую дату окончания работ, заказчик может подать
+        <strong>запрос на продление</strong>. После рассмотрения администратором дата окончания
+        обновляется в системе.
+      </p>
+
+      <div class="info-box warn">
+        <span class="info-box-icon">⚠</span>
+        <p>Редактирование заявки доступно, пока она не переведена в статус <span class="badge badge-done" style="font-size:11px;">Завершён</span> или <span class="badge badge-cancel" style="font-size:11px;">Аннулирован</span>.</p>
+      </div>
+    </section>
+
+    <!-- 9. Lifecycle -->
+    <section class="section" id="lifecycle">
+      <h2><span class="sec-num">09</span>Жизненный цикл заявки</h2>
+      <p>
+        Каждая заявка проходит через строго определённые статусы. Переходы между статусами
+        контролируются системой и зависят от роли пользователя.
+      </p>
+
+      <h3>Статусы</h3>
+      <table class="status-table">
+        <thead>
+          <tr>
+            <th>Статус</th>
+            <th>Значение</th>
+            <th>Кто устанавливает</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-draft">Черновик</span></td>
+            <td>Заявка создана, но ещё не подана. Доступна для редактирования.</td>
+            <td>Создаётся автоматически</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-review">На проверке</span></td>
+            <td>Заявка подана в ЦОДД для рассмотрения. Ожидает решения.</td>
+            <td>Заказчик</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-revise">На доработке</span></td>
+            <td>ЦОДД вернул заявку с замечаниями. Требуется исправление и повторная подача.</td>
+            <td>Администратор ЦОДД</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-active">Активный ремонт</span></td>
+            <td>Заявка одобрена. Работы выполняются. Объект отображается на карте.</td>
+            <td>Администратор ЦОДД</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-done">Завершён</span></td>
+            <td>Работы выполнены и приняты. Заявка закрыта.</td>
+            <td>Администратор ЦОДД</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-cancel">Аннулирован</span></td>
+            <td>Заявка отменена на любом этапе. Объект снимается с карты.</td>
+            <td>Заказчик или Администратор</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Схема переходов</h3>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-node">
+            <span class="flow-badge badge-draft">Черновик</span>
+            <span class="flow-desc">Создана, не подана</span>
+          </div>
+          <span class="flow-arrow">→</span>
+        </div>
+        <div class="flow-step">
+          <div class="flow-node">
+            <span class="flow-badge badge-review">На проверке</span>
+            <span class="flow-desc">Подана в ЦОДД</span>
+          </div>
+          <span class="flow-arrow">→</span>
+        </div>
+        <div class="flow-step">
+          <div class="flow-branch">
+            <div class="flow-node">
+              <span class="flow-badge badge-active">Активный ремонт</span>
+              <span class="flow-desc">Одобрена ЦОДД</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+              <span style="width:28px;height:1px;background:var(--border-lt);display:block;"></span>
+              <div class="flow-node">
+                <span class="flow-badge badge-revise">На доработке</span>
+                <span class="flow-desc">Возврат с замечаниями</span>
+              </div>
+            </div>
+          </div>
+          <span class="flow-arrow">→</span>
+        </div>
+        <div class="flow-step">
+          <div class="flow-node">
+            <span class="flow-badge badge-done">Завершён</span>
+            <span class="flow-desc">Работы приняты</span>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12.5px;color:var(--text-4);margin-top:-8px;">
+        Из любого статуса (кроме «Завершён») возможен переход в <span class="badge badge-cancel" style="font-size:11px;">Аннулирован</span>.
+        Из «На доработке» можно повторно подать заявку в «На проверке».
+      </p>
+
+      <h3>Уведомления при смене статуса</h3>
+      <ul>
+        <li>При переводе в <span class="badge badge-review">На проверке</span> — уведомление всем администраторам ЦОДД</li>
+        <li>При любом другом изменении статуса — уведомление автору заявки</li>
+      </ul>
+    </section>
+
+    <!-- 10. Map -->
+    <section class="section" id="map">
+      <h2><span class="sec-num">10</span>Карта</h2>
+      <p>
+        Раздел «Карта» предоставляет интерактивную визуализацию всех ремонтных объектов
+        с нанесённой геолокацией.
+      </p>
+
+      <h3>Отображаемые объекты</h3>
+      <p>
+        На карте отображаются заявки, для которых указана геолокация (точка, линия или полигон).
+        Удалённые заявки не отображаются. Для каждого объекта цвет маркера соответствует статусу:
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+        <span class="badge badge-draft">Черновик</span>
+        <span class="badge badge-review">На проверке</span>
+        <span class="badge badge-revise">На доработке</span>
+        <span class="badge badge-active">Активный ремонт</span>
+        <span class="badge badge-done">Завершён</span>
+        <span class="badge badge-cancel">Аннулирован</span>
+      </div>
+
+      <h3>Фильтрация по статусу</h3>
+      <p>
+        В верхней части страницы карты расположен фильтр по статусу — позволяет быстро
+        оставить на карте только объекты нужного статуса (например, только активные работы).
+      </p>
+
+      <h3>Всплывающие подсказки</h3>
+      <p>
+        Клик по маркеру объекта открывает попап с кратким описанием: наименование заявки,
+        адрес, статус и ссылка для перехода к полной карточке.
+      </p>
+
+      <h3>Статистика</h3>
+      <p>
+        На странице карты отображается сводная информация:
+        общее количество заявок с геолокацией и количество объектов, видимых в текущем фильтре.
+      </p>
+    </section>
+
+    <!-- 11. Reports -->
+    <section class="section" id="reports">
+      <h2><span class="sec-num">11</span>Отчёты</h2>
+      <p>
+        Раздел «Отчёты» предоставляет аналитический срез по всем заявкам системы
+        с возможностью фильтрации и сортировки.
+      </p>
+
+      <h3>Доступные фильтры</h3>
+      <ul>
+        <li>По <strong>статусу</strong></li>
+        <li>По <strong>просроченности</strong> (просроченные / в срок)</li>
+        <li>По <strong>периоду</strong> (плановые даты начала и окончания)</li>
+        <li>По <strong>организации</strong></li>
+        <li>По <strong>району</strong></li>
+      </ul>
+
+      <h3>Данные таблицы</h3>
+      <p>Для каждой заявки в отчёте отображаются:</p>
+      <ul>
+        <li>Наименование и статус</li>
+        <li>Организация и район</li>
+        <li>Плановые даты начала и окончания</li>
+        <li>Просрочка (в днях) или оставшиеся дни</li>
+        <li>Дата создания заявки</li>
+      </ul>
+
+      <div class="info-box note">
+        <span class="info-box-icon">ℹ</span>
+        <p>Отчёты отображают данные в режиме реального времени — информация актуальна на момент открытия страницы.</p>
+      </div>
+    </section>
+
+    <!-- 12. Notifications -->
+    <section class="section" id="notifications">
+      <h2><span class="sec-num">12</span>Уведомления</h2>
+      <p>
+        Система автоматически информирует пользователей о важных событиях через
+        колокольчик уведомлений в правом верхнем углу интерфейса.
+      </p>
+
+      <h3>Когда приходят уведомления</h3>
+      <ul>
+        <li>Заявка переведена в статус «На проверке» — уведомление получают все администраторы</li>
+        <li>Статус заявки изменён — уведомление получает автор заявки</li>
+      </ul>
+
+      <h3>Работа с уведомлениями</h3>
+      <div class="feature-row">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div class="feature-body">
+          <strong>Счётчик непрочитанных</strong>
+          <p>Красный бейдж на иконке показывает количество непрочитанных уведомлений (до 9+). Обновляется каждые 30 секунд.</p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <div class="feature-body">
+          <strong>Список уведомлений</strong>
+          <p>Клик по колокольчику открывает панель со списком последних уведомлений. Непрочитанные выделены синим фоном.</p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="feature-body">
+          <strong>Отметка как прочитанное</strong>
+          <p>Клик по уведомлению отмечает его как прочитанное и (если привязано к заявке) переходит на страницу этой заявки. Кнопка «Прочитать все» сбрасывает счётчик сразу.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13. Users (admin) -->
+    <section class="section" id="users">
+      <h2><span class="sec-num">13</span>Управление пользователями</h2>
+
+      <div class="info-box admin">
+        <span class="info-box-icon">🔒</span>
+        <p>Данный раздел доступен <strong>только администраторам</strong>. Сотрудникам-заказчикам раздел не виден.</p>
+      </div>
+
+      <p>
+        Раздел «Пользователи» предоставляет администратору полный список учётных записей
+        с возможностью поиска, фильтрации и управления.
+      </p>
+
+      <h3>Список пользователей</h3>
+      <p>Таблица отображает для каждого пользователя:</p>
+      <ul>
+        <li>Имя, фамилию и email</li>
+        <li>Номер телефона</li>
+        <li>Название организации</li>
+        <li>Роль в системе</li>
+        <li>Статус аккаунта (активен / заблокирован)</li>
+        <li>Дату регистрации</li>
+      </ul>
+
+      <h3>Поиск и фильтрация</h3>
+      <ul>
+        <li><strong>Поиск</strong> по имени, фамилии, email или организации</li>
+        <li><strong>Фильтр по роли</strong>: Администратор, Сотрудник</li>
+      </ul>
+
+      <h3>Действия</h3>
+      <ul>
+        <li><strong>Активировать / Заблокировать</strong> — переключает доступность аккаунта</li>
+        <li><strong>Создать пользователя</strong> — форма добавления нового аккаунта</li>
+        <li><strong>Редактировать</strong> — изменение данных существующего пользователя</li>
+      </ul>
+
+      <div class="info-box warn">
+        <span class="info-box-icon">⚠</span>
+        <p>Заблокированный пользователь не сможет войти в систему. Все его заявки при этом сохраняются.</p>
+      </div>
+    </section>
+
+    <!-- 14. Profile -->
+    <section class="section" id="profile">
+      <h2><span class="sec-num">14</span>Личный кабинет</h2>
+      <p>
+        Раздел «Личный кабинет» доступен всем пользователям через боковое меню
+        или клик по имени в шапке. Содержит персональные данные и настройки безопасности.
+      </p>
+
+      <h3>Личные данные</h3>
+      <dl class="kv-list">
+        <dt>Имя, Фамилия</dt><dd>Отображаемое имя в интерфейсе</dd>
+        <dt>Email</dt><dd>Логин для входа в систему</dd>
+        <dt>Телефон</dt><dd>Контактный номер</dd>
+        <dt>Организация</dt><dd>Название организации-заказчика</dd>
+      </dl>
+
+      <h3>Смена пароля</h3>
+      <ol class="steps">
+        <li>Введите текущий пароль в поле <strong>«Текущий пароль»</strong>.</li>
+        <li>Введите новый пароль в поле <strong>«Новый пароль»</strong>.</li>
+        <li>Повторите новый пароль в поле подтверждения.</li>
+        <li>Нажмите <strong>«Сохранить»</strong>.</li>
+      </ol>
+    </section>
+
+    <!-- 15. Roles -->
+    <section class="section" id="roles">
+      <h2><span class="sec-num">15</span>Роли и доступ</h2>
+      <p>
+        В системе предусмотрено две основные роли с разными правами доступа.
+      </p>
+
+      <div class="role-grid">
+        <div class="role-card">
+          <h4>Сотрудник (Заказчик)</h4>
+          <ul>
+            <li>Создание заявок</li>
+            <li>Просмотр своих заявок</li>
+            <li>Редактирование черновиков</li>
+            <li>Подача заявки на проверку</li>
+            <li>Загрузка документов и фото</li>
+            <li>Запрос продления сроков</li>
+            <li>Аннулирование своих заявок</li>
+            <li>Просмотр карты</li>
+            <li>Просмотр своих уведомлений</li>
+          </ul>
+        </div>
+        <div class="role-card">
+          <h4>Администратор (ЦОДД)</h4>
+          <ul>
+            <li>Всё, что доступно сотруднику</li>
+            <li>Просмотр <strong>всех</strong> поданных заявок</li>
+            <li>Одобрение и перевод в «Активный»</li>
+            <li>Возврат на доработку с комментарием</li>
+            <li>Завершение и аннулирование любой заявки</li>
+            <li>Управление пользователями</li>
+            <li>Просмотр всех уведомлений</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Видимость заявок</h3>
+      <table class="status-table">
+        <thead>
+          <tr>
+            <th>Статус заявки</th>
+            <th>Заказчик видит?</th>
+            <th>Администратор видит?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-draft">Черновик</span></td>
+            <td>Только свои</td>
+            <td>Только свои черновики</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-review">На проверке</span></td>
+            <td>Только свои</td>
+            <td>Все</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-revise">На доработке</span></td>
+            <td>Только свои</td>
+            <td>Все</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-active">Активный</span></td>
+            <td>Только свои</td>
+            <td>Все</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-done">Завершён</span></td>
+            <td>Только свои</td>
+            <td>Все</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-cancel">Аннулирован</span></td>
+            <td>Только свои</td>
+            <td>Все</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="info-box note">
+        <span class="info-box-icon">ℹ</span>
+        <p>Черновики заказчика недоступны администратору до момента подачи заявки на проверку. Это обеспечивает конфиденциальность незавершённых документов.</p>
+      </div>
+
+      <div class="divider"></div>
+
+      <p style="font-size:12.5px;color:var(--text-4);text-align:center;">
+        По вопросам работы системы обращайтесь к администратору вашей организации.
+      </p>
+    </section>
+  </main>
+</div>
+
+<script>
+/* Theme toggle */
+(function () {
+  const btn = document.getElementById('themeBtn');
+  const root = document.documentElement;
+
+  function getTheme() {
+    return localStorage.getItem('rw-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  }
+
+  function applyTheme(t) {
+    root.setAttribute('data-theme', t);
+    localStorage.setItem('rw-theme', t);
+  }
+
+  applyTheme(getTheme());
+
+  btn.addEventListener('click', () => {
+    applyTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+})();
+
+/* Active nav on scroll */
+(function () {
+  const links = document.querySelectorAll('.sidebar-nav a');
+  const sections = Array.from(document.querySelectorAll('.section'));
+
+  function onScroll() {
+    const scrollY = window.scrollY + 80;
+    let active = sections[0];
+    for (const s of sections) {
+      if (s.offsetTop <= scrollY) active = s;
+    }
+    links.forEach(l => {
+      l.classList.toggle('active', l.getAttribute('href') === '#' + active.id);
+    });
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>

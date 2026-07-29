@@ -185,6 +185,9 @@ export default function RepairDetailPage() {
   const [statusLoading, setStatusLoading] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
+  const [finishLoading, setFinishLoading] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!id) return;
     Promise.all([
@@ -202,6 +205,23 @@ export default function RepairDetailPage() {
       })
       .finally(() => setIsLoading(false));
   }, [id]);
+
+  async function markWorkFinished() {
+    if (!request) return;
+    setFinishLoading(true);
+    setFinishError(null);
+    try {
+      const updated = await apiFetch<RepairRequest>(`/api/v1/road-repair/requests/${id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_work_finished: true }),
+      });
+      setRequest(updated);
+    } catch (e: unknown) {
+      setFinishError(e instanceof Error ? e.message : "Ошибка при сохранении");
+    } finally {
+      setFinishLoading(false);
+    }
+  }
 
   async function changeStatus(newStatus: string) {
     if (!request) return;
@@ -519,9 +539,10 @@ export default function RepairDetailPage() {
                 actions.push({ label: "Аннулировать", status: "cancelled", style: "border border-[#D92D20] text-[#D92D20] hover:bg-[#FFF2F2]", needsComment: true });
               }
             } else {
-              // employee: submit draft or re-submit after revision
+              // employee: submit draft, re-submit after revision, or cancel own draft
               if (request.status === "draft") {
                 actions.push({ label: "Отправить на проверку", status: "pending_review", style: "bg-[#12345B] text-white hover:bg-[#0A223D]" });
+                actions.push({ label: "Аннулировать", status: "cancelled", style: "border border-[#D92D20] text-[#D92D20] hover:bg-[#FFF2F2]", needsComment: true });
               }
               if (request.status === "needs_revision") {
                 actions.push({ label: "Отправить на повторную проверку", status: "pending_review", style: "bg-[#12345B] text-white hover:bg-[#0A223D]" });
@@ -666,6 +687,28 @@ export default function RepairDetailPage() {
               </div>
               {request.completion_comment && (
                 <p className="text-xs text-[#667085] mt-2 leading-relaxed">{request.completion_comment}</p>
+              )}
+
+              {/* Contractor button: mark work as finished */}
+              {currentUser?.role !== "admin" &&
+               request.status === "active" &&
+               !request.is_work_finished && (
+                <div className="mt-3 pt-3 border-t border-[#F2F4F7]">
+                  {finishError && (
+                    <p className="text-xs text-[#D92D20] mb-2">{finishError}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={markWorkFinished}
+                    disabled={finishLoading}
+                    className="w-full h-9 px-3 rounded-[6px] bg-[#027A48] text-white text-sm font-medium hover:bg-[#015c36] transition-colors disabled:opacity-60"
+                  >
+                    {finishLoading ? "Сохранение…" : "Отметить работы как завершённые"}
+                  </button>
+                  <p className="text-[11px] text-[#98A2B3] mt-1.5 text-center leading-snug">
+                    ЦОДД получит уведомление и закроет заявку после проверки
+                  </p>
+                </div>
               )}
             </div>
           )}

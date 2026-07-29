@@ -340,7 +340,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   useEffect(() => {
-    if (!isLoading && !user) router.replace("/");
+    if (!isLoading && !user) router.replace("/login");
   }, [user, isLoading, router]);
 
   function toggle() {
@@ -409,39 +409,61 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Logo area */}
         <div
-          className="relative z-10 shrink-0 flex items-center overflow-visible"
+          className="relative z-10 shrink-0 flex flex-col overflow-visible"
           style={{
             padding: isCollapsed ? "14px 8px" : "12px 16px",
             borderBottom: "1px solid rgba(255,255,255,0.07)",
+            gap: isCollapsed ? 0 : "10px",
           }}
         >
-          <Link
-            href="/dashboard"
-            className="group relative overflow-hidden flex items-center rounded-xl transition-colors duration-200 hover:bg-white/[0.04]"
-            style={{
-              border: "1px solid rgba(255,255,255,0.06)",
-              width: isCollapsed ? 44 : "100%",
-              height: isCollapsed ? 44 : "auto",
-              justifyContent: isCollapsed ? "center" : "flex-start",
-              padding: isCollapsed ? 0 : "8px 10px",
-            }}
-          >
-            <ShineSweep />
-            {isCollapsed ? (
-              <LogoMark />
-            ) : (
+          <div className="flex items-center">
+            <Link
+              href="/dashboard"
+              className="group relative overflow-hidden flex items-center rounded-xl transition-colors duration-200 hover:bg-white/[0.04]"
+              style={{
+                border: "1px solid rgba(255,255,255,0.06)",
+                width: isCollapsed ? 44 : "100%",
+                height: isCollapsed ? 44 : "auto",
+                justifyContent: isCollapsed ? "center" : "flex-start",
+                padding: isCollapsed ? 0 : "8px 10px",
+              }}
+            >
+              <ShineSweep />
+              {isCollapsed ? (
+                <LogoMark />
+              ) : (
+                <Image
+                  src="/remontnye_raboty_logo.svg"
+                  alt="Ремонтные работы"
+                  width={1600}
+                  height={500}
+                  sizes="208px"
+                  className="w-full h-auto relative z-10"
+                  priority
+                  unoptimized
+                />
+              )}
+            </Link>
+          </div>
+
+          {/* Secondary logo */}
+          {!isCollapsed && (
+            <div
+              className="flex items-center justify-center px-2 py-2 rounded-lg"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+            >
               <Image
-                src="/remontnye_raboty_logo.svg"
-                alt="Ремонтные работы"
-                width={1600}
-                height={500}
-                sizes="208px"
-                className="w-full h-auto relative z-10"
-                priority
+                src="/logo_sc.png"
+                alt="SC"
+                width={400}
+                height={120}
+                sizes="180px"
+                className="w-full h-auto object-contain"
+                style={{ maxHeight: 40 }}
                 unoptimized
               />
-            )}
-          </Link>
+            </div>
+          )}
 
           {/* Collapse toggle */}
           <button

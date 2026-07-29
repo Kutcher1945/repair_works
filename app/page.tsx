@@ -1,282 +1,261 @@
 "use client";
 
-import { useId, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "./context/auth-context";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import type { PublicRepair } from "./_components/PublicMapView";
 
-function BuildingIcon() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-      <path
-        d="M3 23h20M7 23V11l6-4 6 4v12"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <rect x="10" y="16" width="6" height="7" rx="0.5" stroke="currentColor" strokeWidth="1.75" />
-      <rect x="8.5" y="7.5" width="3" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="14.5" y="7.5" width="3" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-function EyeIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  );
-}
+const PublicMapView = dynamic(() => import("./_components/PublicMapView"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        background: "linear-gradient(160deg, #06152A 0%, #0D2344 50%, #12345B 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style={{ color: "#2F80C9" }}>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.2" />
+        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+          style={{ animationName: "spin", animationDuration: "1s", animationTimingFunction: "linear", animationIterationCount: "infinite" }} />
+      </svg>
+    </div>
+  ),
+});
 
-function EyeOffIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function Spinner() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="animate-spin" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-export default function LoginPage() {
-  const emailId = useId();
-  const passwordId = useId();
-  const router = useRouter();
-  const { login, user, isLoading: authLoading } = useAuth();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+export default function PublicLandingPage() {
+  const [repairs, setRepairs] = useState<PublicRepair[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user) {
-      router.replace("/dashboard");
-    }
-  }, [user, authLoading, router]);
+    fetch(`${API_URL}/api/v1/road-repair/public-repairs/`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setRepairs(Array.isArray(data) ? data : (data.results ?? [])))
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
 
-  if (authLoading || user) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-[#F4F7FB] text-[#2F80C9]">
-        <Spinner />
-      </div>
-    );
-  }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-
-    if (!email.trim() || !password) {
-      setError("Заполните все поля");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await login(email.trim(), password);
-      router.replace("/dashboard");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Ошибка входа");
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const withGeo = repairs.filter((r) => r.geometry);
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      {/* Left hero */}
-      <div
-        className="hidden lg:block relative flex-1 overflow-hidden"
-        role="img"
-        aria-label="Панорама Алматы — Ремонтные работы"
-      >
-        <style>{`
-          @keyframes heroStripT {
-            from { transform: translateY(-110%); }
-            to   { transform: translateY(0); }
-          }
-          @keyframes heroStripB {
-            from { transform: translateY(110%); }
-            to   { transform: translateY(0); }
-          }
-          @media (prefers-reduced-motion: reduce) {
-            .hero-strip { animation-duration: 0.01ms !important; animation-delay: 0ms !important; }
-          }
-        `}</style>
+    <>
+      <style>{`
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%       { opacity: 0.6; transform: scale(1.4); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
 
-        {Array.from({ length: 10 }, (_, i) => {
-          const n = 10;
-          const w = 100 / n;  // strip width in %
-          const d = 16;       // diagonal offset in %
-          const x0 = i * w - d / 2;
-          const x1 = x0 + w;
-          // Extend first strip to cover bottom-left corner,
-          // extend last strip to cover top-right corner
-          const tl = `${i === 0 ? 0 : x0}% 0%`;
-          const tr = `${i === n - 1 ? 100 : x1}% 0%`;
-          const br = `${i === n - 1 ? 100 : x1 + d}% 100%`;
-          const bl = `${i === 0 ? 0 : x0 + d}% 100%`;
-          return (
+      <div style={{ position: "fixed", inset: 0, overflow: "hidden" }}>
+
+        {/* ── Full-screen map ──────────────────────────────────────── */}
+        <div style={{ position: "absolute", inset: 0 }}>
+          <PublicMapView key={loaded ? "loaded" : "loading"} repairs={repairs} />
+        </div>
+
+        {/* ── Top header overlay ───────────────────────────────────── */}
+        <header
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 800,
+            height: 64,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 24px",
+            background: "linear-gradient(135deg, rgba(6,21,42,0.96) 0%, rgba(13,35,68,0.94) 100%)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+          }}
+        >
+          {/* Grid texture */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px)",
+              backgroundSize: "28px 28px",
+              pointerEvents: "none",
+            }}
+          />
+
+          {/* Logos */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, position: "relative", zIndex: 1 }}>
+            <Image
+              src="/remontnye_raboty_logo.svg"
+              alt="Ремонтные работы"
+              width={700}
+              height={200}
+              style={{ height: 36, width: "auto" }}
+              priority
+              unoptimized
+            />
             <div
-              key={i}
-              className="hero-strip absolute inset-0 bg-cover bg-center bg-no-repeat"
               style={{
-                backgroundImage: "url('/background-login.png')",
-                clipPath: `polygon(${tl}, ${tr}, ${br}, ${bl})`,
-                animation: `${i % 2 === 0 ? "heroStripT" : "heroStripB"} 1s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.075}s both`,
+                width: 1,
+                height: 28,
+                background: "rgba(255,255,255,0.2)",
               }}
             />
-          );
-        })}
-
-        {/* Gradient overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(90deg, rgba(10,34,61,0.55) 0%, rgba(18,52,91,0.25) 50%, rgba(18,52,91,0.05) 100%)",
-          }}
-        />
-      </div>
-
-      {/* Right login panel */}
-      <div className="flex-shrink-0 w-full lg:w-[460px] xl:w-[500px] flex flex-col justify-center px-10 py-14 bg-[#F4F7FB] overflow-y-auto">
-        <div className="w-full max-w-[360px] mx-auto">
-
-          {/* Brand lockup */}
-          <div className="flex items-center gap-3 mb-10">
-            <div className="text-[#12345B]">
-              <BuildingIcon />
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-[#8899AA]">
-                Система мониторинга
-              </p>
-              <p className="text-[17px] font-bold text-[#12345B] tracking-wider leading-tight">
-                Ремонтные работы
-              </p>
-            </div>
+            <Image
+              src="/logo_sc.png"
+              alt="SC"
+              width={400}
+              height={120}
+              style={{ height: 36, width: "auto" }}
+              priority
+              unoptimized
+            />
           </div>
 
-          <h1 className="text-[22px] font-semibold text-[#1D2939] mb-1">
-            Вход в систему
-          </h1>
-          <p className="text-sm text-[#667085] mb-8 leading-relaxed">
-            Введите учётные данные для доступа к платформе
-          </p>
-
-          <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            {/* Email */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor={emailId}
-                className="block text-sm font-medium text-[#1D2939]"
-              >
-                Email
-              </label>
-              <input
-                id={emailId}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
-                autoComplete="email"
-                disabled={isLoading}
-                className="w-full h-11 px-4 rounded-[6px] border border-[#D9E0E8] bg-white text-[#1D2939] text-sm placeholder:text-[#98A2B3] outline-none transition-[border-color,box-shadow] focus:border-[#2F80C9] focus:ring-2 focus:ring-[#2F80C9]/20 disabled:opacity-60 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            {/* Password */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor={passwordId}
-                className="block text-sm font-medium text-[#1D2939]"
-              >
-                Пароль
-              </label>
-              <div className="relative">
-                <input
-                  id={passwordId}
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Введите пароль"
-                  autoComplete="current-password"
-                  disabled={isLoading}
-                  className="w-full h-11 pl-4 pr-11 rounded-[6px] border border-[#D9E0E8] bg-white text-[#1D2939] text-sm placeholder:text-[#98A2B3] outline-none transition-[border-color,box-shadow] focus:border-[#2F80C9] focus:ring-2 focus:ring-[#2F80C9]/20 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
-                  tabIndex={-1}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#98A2B3] hover:text-[#667085] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F80C9] rounded"
-                >
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
-              </div>
-            </div>
-
-            {/* Error */}
-            {error && (
-              <p
-                role="alert"
-                className="text-sm text-[#D92D20] bg-[#FFF2F2] border border-[#D92D20]/30 rounded-[6px] px-4 py-2.5"
-              >
-                {error}
-              </p>
-            )}
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full h-11 flex items-center justify-center gap-2.5 rounded-[6px] bg-[#12345B] text-white text-sm font-semibold tracking-wide hover:bg-[#0A223D] active:bg-[#0A223D] transition-colors disabled:opacity-70 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F80C9] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F4F7FB]"
+          {/* Center title */}
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+              textAlign: "center",
+              zIndex: 1,
+              pointerEvents: "none",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: "rgba(255,255,255,0.9)",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                margin: 0,
+                lineHeight: 1.2,
+              }}
             >
-              {isLoading ? (
-                <>
-                  <Spinner />
-                  Выполняется вход…
-                </>
-              ) : (
-                "Войти"
-              )}
-            </button>
-          </form>
-
-          {/* Footer */}
-          <div className="mt-10 pt-8 border-t border-[#D9E0E8]">
-            <p className="text-[11px] text-[#98A2B3] text-center leading-relaxed">
-              Управление строительства города Алматы
-              <br />
-              © 2024 Ремонтные работы. Все права защищены.
+              Карта ремонтных работ
+            </p>
+            <p
+              style={{
+                fontSize: 11,
+                color: "rgba(255,255,255,0.4)",
+                margin: "2px 0 0",
+                letterSpacing: "0.04em",
+              }}
+            >
+              г. Алматы
             </p>
           </div>
 
+          {/* Login button */}
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <Link
+              href="/login"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                height: 38,
+                padding: "0 18px",
+                borderRadius: 8,
+                background: "linear-gradient(135deg, #2F80C9, #1a5fa0)",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: "0.03em",
+                textDecoration: "none",
+                boxShadow: "0 4px 16px rgba(47,128,201,0.4)",
+                transition: "box-shadow .2s, transform .15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(47,128,201,0.65)";
+                (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(47,128,201,0.4)";
+                (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+              }}
+            >
+              Войти
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="10 17 15 12 10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </Link>
+          </div>
+        </header>
+
+        {/* ── Bottom info strip ────────────────────────────────────── */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 800,
+            height: 48,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 24px",
+            background: "linear-gradient(135deg, rgba(6,21,42,0.94) 0%, rgba(13,35,68,0.92) 100%)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            borderTop: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          {/* Active count */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "#027A48",
+                display: "inline-block",
+                animation: "pulse-dot 2s ease-in-out infinite",
+                boxShadow: "0 0 0 3px rgba(2,122,72,0.25)",
+              }}
+            />
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>
+              {loaded ? withGeo.length : "—"} активных{" "}
+              <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>
+                {withGeo.length === 1 ? "объект" : withGeo.length >= 2 && withGeo.length <= 4 ? "объекта" : "объектов"}
+              </span>
+            </span>
+          </div>
+
+          {/* Legend */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="20" height="6" viewBox="0 0 20 6" fill="none">
+                <rect y="1" width="20" height="4" rx="2" fill="#027A48" fillOpacity="0.85" />
+              </svg>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Активный ремонт</span>
+            </div>
+          </div>
+
+          {/* Right: attribution hint */}
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
+            Управление строительства города Алматы
+          </span>
         </div>
+
       </div>
-    </div>
+    </>
   );
 }
