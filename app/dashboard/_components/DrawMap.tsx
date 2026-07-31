@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import GeoSearchInput from "./GeoSearchInput";
 import type { Map as LeafletMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
@@ -16,6 +17,8 @@ type Props = {
   value: DrawnGeometry | null;
   onChange: (g: DrawnGeometry | null) => void;
   disabled?: boolean;
+  flyTo?: { lat: number; lng: number } | null;
+  onGeoSearch?: (lat: number, lng: number, name: string) => void;
 };
 
 import L from "leaflet";
@@ -26,6 +29,16 @@ L.Icon.Default.mergeOptions({
   iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
+
+function FlyToControl({ target }: { target: { lat: number; lng: number } | null | undefined }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!target) return;
+    map.flyTo([target.lat, target.lng], 17, { duration: 1.2 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.lat, target?.lng]);
+  return null;
+}
 
 /* Tells Leaflet the container resized so tiles repaint */
 function MapSizeInvalidator({ trigger }: { trigger: boolean }) {
@@ -96,7 +109,7 @@ function GeomanControls({ value, onChange, disabled }: Props) {
 
 const ALMATY: [number, number] = [43.238, 76.945];
 
-export default function DrawMap({ value, onChange, disabled }: Props) {
+export default function DrawMap({ value, onChange, disabled, flyTo, onGeoSearch }: Props) {
   const [mounted,    setMounted]    = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -119,14 +132,34 @@ export default function DrawMap({ value, onChange, disabled }: Props) {
       className="w-full overflow-hidden border border-[#D9E0E8]"
       style={containerStyle}
     >
+      {/* Search bar — only visible in fullscreen mode */}
+      {fullscreen && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "min(460px, calc(100% - 100px))",
+            zIndex: 9998,
+          }}
+        >
+          <GeoSearchInput
+            placeholder="Найти место на карте…"
+            onSelect={(lat, lng, name) => onGeoSearch?.(lat, lng, name)}
+          />
+        </div>
+      )}
+
       {mounted && (
-        <MapContainer center={ALMATY} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl>
+        <MapContainer center={ALMATY} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl crs={L.CRS.EPSG3395}>
           <TileLayer
             attribution='&copy; <a href="https://yandex.com/maps" target="_blank">Яндекс</a>'
             url="https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU"
           />
           <GeomanControls value={value} onChange={onChange} disabled={disabled ?? false} />
           <MapSizeInvalidator trigger={fullscreen} />
+          <FlyToControl target={flyTo} />
         </MapContainer>
       )}
 

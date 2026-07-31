@@ -9,6 +9,7 @@ import { useAuth } from "../../../context/auth-context";
 import type { DrawnGeometry } from "../../_components/DrawMap";
 import { useUnsavedChanges, UnsavedChangesModal } from "../../_components/UnsavedChangesGuard";
 import ContractorCombobox from "../../_components/ContractorCombobox";
+import GeoSearchInput from "../../_components/GeoSearchInput";
 
 const DrawMap = dynamic(() => import("../../_components/DrawMap"), { ssr: false });
 
@@ -163,6 +164,7 @@ export default function NewRepairPage() {
 
   const [districts, setDistricts] = useState<District[]>([]);
   const [districtLoading, setDistrictLoading] = useState(true);
+  const [mapFlyTo, setMapFlyTo] = useState<{ lat: number; lng: number } | null>(null);
 
   const [form, setForm] = useState<FormState>({
     title: "",
@@ -443,10 +445,25 @@ export default function NewRepairPage() {
                 Геометрия участка
                 <span className="text-[#D92D20] ml-0.5">*</span>
               </label>
+              <div className="mb-2">
+                <GeoSearchInput
+                  disabled={submitting}
+                  placeholder="Найти место на карте…"
+                  onSelect={(lat, lng, name) => {
+                    setMapFlyTo({ lat, lng });
+                    if (!form.address.trim()) set("address", name);
+                  }}
+                />
+              </div>
               <DrawMap
                 value={form.geometry}
                 onChange={(g) => set("geometry", g)}
                 disabled={submitting}
+                flyTo={mapFlyTo}
+                onGeoSearch={(lat, lng, name) => {
+                  setMapFlyTo({ lat, lng });
+                  if (!form.address.trim()) set("address", name);
+                }}
               />
               {form.geometry && (
                 <div className="mt-2 flex items-center justify-between">
