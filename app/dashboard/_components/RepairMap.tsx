@@ -167,6 +167,7 @@ export default function RepairMap({ requests }: { requests: MapRepairRequest[] }
       zoom={12}
       style={{ height: "100%", width: "100%" }}
       zoomControl
+      crs={L.CRS.EPSG3395}
     >
       <TileLayer
         attribution='&copy; <a href="https://yandex.com/maps" target="_blank">Яндекс</a>'

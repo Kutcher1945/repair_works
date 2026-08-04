@@ -159,7 +159,7 @@ function buildPopup(r: PublicRepair, lengthLabel: string): string {
   }
 
   const hasOrgBlock = r.organization_name || r.contractor_name || r.contractor_phone;
-  const hasDatesBlock = r.planned_start_date || r.approved_at || lengthLabel;
+  const hasDatesBlock = r.planned_start_date || lengthLabel;
   const hasRestriction = r.has_traffic_restriction && r.traffic_restriction_description;
 
   if (hasOrgBlock) {
@@ -172,7 +172,6 @@ function buildPopup(r: PublicRepair, lengthLabel: string): string {
   if (hasDatesBlock) {
     html += div;
     if (r.planned_start_date) html += row(ICONS.cal,   "Дата начала",   fmtDate(r.planned_start_date));
-    if (r.approved_at)        html += row(ICONS.check, "Согласовано",   fmtDate(r.approved_at));
     if (lengthLabel)          html += row(ICONS.ruler, "Протяжённость", lengthLabel);
   }
 

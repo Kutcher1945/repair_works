@@ -61,13 +61,38 @@ export default function PublicLandingPage() {
   const withGeo = repairs.filter((r) => r.geometry);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return withGeo;
-    return withGeo.filter(
-      (r) =>
-        r.title.toLowerCase().includes(q) ||
-        (r.address ?? "").toLowerCase().includes(q)
-    );
+    const raw = search.trim().toLowerCase();
+    if (!raw) return withGeo;
+
+    // Normalize common Kazakh/Russian street abbreviations so "ул абай" matches "улица абая"
+    const normalize = (s: string) =>
+      s
+        .replace(/\bул\b\.?/g, "улица")
+        .replace(/\bпр\b\.?/g, "проспект")
+        .replace(/\bпр-т\b\.?/g, "проспект")
+        .replace(/\bпр-кт\b\.?/g, "проспект")
+        .replace(/\bпер\b\.?/g, "переулок")
+        .replace(/\bмкр\b\.?/g, "микрорайон")
+        .replace(/\bд\b\.?/g, "дом")
+        .replace(/[-–—,./()]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const q = normalize(raw);
+
+    const haystack = (r: PublicRepair) =>
+      normalize(
+        [r.title, r.address, r.road_section, r.district, r.organization_name, r.contractor_name]
+          .filter(Boolean)
+          .join(" ")
+      );
+
+    // All query tokens must appear somewhere in the haystack
+    const tokens = q.split(/\s+/).filter(Boolean);
+    return withGeo.filter((r) => {
+      const hay = haystack(r);
+      return tokens.every((t) => hay.includes(t));
+    });
   }, [withGeo, search]);
 
   return (
@@ -177,7 +202,7 @@ export default function PublicLandingPage() {
                 <input
                   className="rw-search"
                   type="text"
-                  placeholder="Поиск по названию или адресу…"
+                  placeholder="Улица, адрес, район, подрядчик…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
