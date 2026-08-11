@@ -171,15 +171,26 @@ export async function GET(req: NextRequest) {
   const text = req.nextUrl.searchParams.get("text")?.trim() ?? "";
   if (!text || text.length < 2) return NextResponse.json({ suggestions: [] });
 
-  // When query has digits: run Geocoder (house mode) + Photon in parallel for best coverage
+  // When query has digits: address/building search — run multiple sources in parallel
   if (/\d/.test(text)) {
-    const [geocoded, photon] = await Promise.all([tryYandexGeocode(text), tryPhoton(text)]);
-    // Prefer geocoder results (Yandex data quality), supplement with Photon
-    const combined = [...(geocoded ?? []), ...(photon ?? [])];
+    // Also try with "ул." prefix if query doesn't already have a street type prefix
+    const hasPrefix = /^(ул\.|улица|пр\.|просп\.|проспект|пер\.|переулок|мкр\.?|микрорайон)/i.test(text);
+    const altText = hasPrefix ? null : `ул. ${text}`;
+
+    const tasks: Promise<SuggestionItem[] | null>[] = [
+      tryYandexGeocode(text),
+      tryPhoton(text),
+      tryNominatim(text),
+    ];
+    if (altText) tasks.push(tryYandexGeocode(altText));
+
+    const results = await Promise.all(tasks);
+    const combined = results.flatMap((r) => r ?? []);
     const seen = new Set<string>();
     const unique = combined.filter((s) => {
-      if (seen.has(s.name)) return false;
-      seen.add(s.name);
+      const key = s.name.toLowerCase().replace(/\s+/g, " ");
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
     const suggestions = unique.filter((s) => inAlmaty(s.lat, s.lng)).slice(0, 7);

@@ -315,8 +315,25 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* Public map link */}
+          <div className="mt-6 flex justify-center">
+            <a
+              href="/"
+              className="inline-flex items-center gap-2 text-[12px] transition-colors"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.8)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.4)"; }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round"/>
+                <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.75"/>
+              </svg>
+              Публичная карта ремонтных работ
+            </a>
+          </div>
+
           {/* Footer */}
-          <div className="mt-10 pt-8" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+          <div className="mt-6 pt-6" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
             <p className="text-[11px] text-center leading-relaxed" style={{ color: "rgba(255,255,255,0.3)" }}>
               Управление строительства города Алматы
               <br />

@@ -18,7 +18,7 @@ interface Props {
 export default function GeoSearchInput({
   onSelect,
   disabled,
-  placeholder = "Найти место на карте…",
+  placeholder = "Улица или адрес (напр. Айманова 103)…",
 }: Props) {
   const [query, setQuery]           = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -143,7 +143,9 @@ export default function GeoSearchInput({
             listStyle: "none", maxHeight: 260, overflowY: "auto",
           }}
         >
-          {suggestions.map((s, i) => (
+          {suggestions.map((s, i) => {
+            const isAddress = /\d+[а-яёa-z]?$/i.test(s.name.trim());
+            return (
             <li
               key={i}
               onMouseDown={() => selectSuggestion(s)}
@@ -154,16 +156,24 @@ export default function GeoSearchInput({
                 transition: "background .1s",
               }}
             >
-              <svg style={{ flexShrink: 0, marginTop: 2, color: "#98A2B3" }} width="13" height="13" viewBox="0 0 24 24" fill="none">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" />
-              </svg>
+              {isAddress ? (
+                <svg style={{ flexShrink: 0, marginTop: 2, color: "#2F80C9" }} width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                  <path d="M9 21V12h6v9" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                </svg>
+              ) : (
+                <svg style={{ flexShrink: 0, marginTop: 2, color: "#98A2B3" }} width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              )}
               <div style={{ minWidth: 0 }}>
                 <p style={{ fontSize: 13, color: "#1D2939", margin: 0, fontWeight: i === active ? 600 : 400 }}>{s.name}</p>
                 {s.subtitle && <p style={{ fontSize: 11, color: "#98A2B3", margin: "2px 0 0" }}>{s.subtitle}</p>}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>
