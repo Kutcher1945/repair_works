@@ -99,6 +99,7 @@ export default function ProfilePage() {
 
   const [firstName,  setFirstName]  = useState(user?.first_name ?? "");
   const [lastName,   setLastName]   = useState(user?.last_name  ?? "");
+  const [email,      setEmail]      = useState(user?.email      ?? "");
   const [phone,      setPhone]      = useState(user?.phone      ?? "");
   const [infoSaving, setInfoSaving] = useState(false);
   const [infoResult, setInfoResult] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
@@ -126,7 +127,12 @@ export default function ProfilePage() {
     try {
       const updated = await apiFetch<User>("/api/v1/common/auth/me/", {
         method: "PATCH",
-        body: JSON.stringify({ first_name: firstName.trim(), last_name: lastName.trim(), phone: phone.trim() }),
+        body: JSON.stringify({
+          first_name: firstName.trim(),
+          last_name:  lastName.trim(),
+          phone:      phone.trim(),
+          email:      email.trim() || null,
+        }),
       });
       setUser(updated);
       setInfoResult({ type: "ok", msg: "Данные успешно сохранены" });
@@ -293,7 +299,16 @@ export default function ProfilePage() {
 
               <div>
                 <Label>Email</Label>
-                <input type="text" className={INPUT_READONLY} value={user.email} readOnly tabIndex={-1} />
+                <input
+                  type="email"
+                  className={INPUT}
+                  placeholder="user@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={infoSaving}
+                  maxLength={254}
+                  autoComplete="email"
+                />
               </div>
 
               <div>
@@ -370,7 +385,7 @@ export default function ProfilePage() {
             </div>
             <div className="divide-y divide-[#F7F9FC]">
               {[
-                { label: "Email",            value: user.email },
+                { label: "Email",            value: user.email || "—" },
                 { label: "Роль",             value: ROLE_LABELS[user.role] ?? user.role },
                 { label: "Организация",      value: user.organization_name || "—" },
                 { label: "Дата регистрации", value: user.date_joined ? fmtDate(user.date_joined) : "—" },

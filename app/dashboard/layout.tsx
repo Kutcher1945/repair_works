@@ -651,20 +651,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <NotificationBell />
             <Link
               href="/dashboard/profile"
-              className="flex items-center gap-2 rounded-[8px] px-2 py-1 hover:bg-[#F2F4F7] transition-colors"
+              aria-label={displayName}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold hover:opacity-80 transition-opacity flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #DCECF8, #BBDAF5)", color: "#12345B" }}
             >
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, #DCECF8, #BBDAF5)", color: "#12345B" }}
-              >
-                {initials}
-              </div>
-              <div className="hidden sm:flex flex-col leading-tight">
-                <span className="text-[13px] font-medium text-[#344054]">{displayName}</span>
-                {user.organization_name && (
-                  <span className="text-[11px] text-[#667085]">{user.organization_name}</span>
-                )}
-              </div>
+              {initials}
             </Link>
           </div>
         </header>

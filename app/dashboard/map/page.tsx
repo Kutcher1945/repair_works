@@ -52,6 +52,7 @@ function SpinnerIcon() {
 }
 
 export default function MapPage() {
+  const [tab,     setTab]     = useState<"admin" | "public">("admin");
   const [all,     setAll]     = useState<MapRepairRequest[]>([]);
   const [me,      setMe]      = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,8 +89,56 @@ export default function MapPage() {
 
   const isAdmin = me?.role === "admin";
 
+  const contentHeight = "calc(100dvh - 56px - 48px)";
+
   return (
-    <div className="flex flex-col gap-3" style={{ height: "calc(100dvh - 56px - 48px)" }}>
+    <div className="flex flex-col gap-3" style={{ height: contentHeight }}>
+
+      {/* ── Tab switcher ──────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 flex-shrink-0 bg-white border border-[#D9E0E8] rounded-[8px] p-1 self-start">
+        {([
+          { key: "admin",  label: "Карта",           icon: (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )},
+          { key: "public", label: "Публичная карта", icon: (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.75"/>
+              <path d="M2 12h20M12 2c-3 3-5 6-5 10s2 7 5 10M12 2c3 3 5 6 5 10s-2 7-5 10" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/>
+            </svg>
+          )},
+        ] as const).map(({ key, label, icon }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={[
+              "inline-flex items-center gap-2 h-8 px-3.5 rounded-[6px] text-sm font-medium transition-all",
+              tab === key
+                ? "bg-[#12345B] text-white shadow-sm"
+                : "text-[#667085] hover:text-[#344054] hover:bg-[#F7F9FC]",
+            ].join(" ")}
+          >
+            {icon}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Public map (iframe) ───────────────────────────────────── */}
+      {tab === "public" && (
+        <div className="flex-1 min-h-0 rounded-[10px] overflow-hidden border border-[#D9E0E8] relative">
+          <iframe
+            src="/"
+            title="Публичная карта ремонтных работ"
+            className="w-full h-full border-0"
+            allow="geolocation"
+          />
+        </div>
+      )}
+
+      {/* ── Admin map ────────────────────────────────────────────── */}
+      {tab === "admin" && <>
 
       {/* ── Filter / stats bar ────────────────────────────────────── */}
       <div className="flex items-center gap-3 flex-wrap flex-shrink-0">
@@ -209,6 +258,8 @@ export default function MapPage() {
         )}
 
       </div>
+
+      </>}
     </div>
   );
 }
