@@ -8,6 +8,7 @@ import { useUnsavedChanges, UnsavedChangesModal } from "../../_components/Unsave
 
 type FormState = {
   email: string;
+  username: string;
   first_name: string;
   last_name: string;
   phone: string;
@@ -44,6 +45,7 @@ export default function NewUserPage() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>({
     email: "",
+    username: "",
     first_name: "",
     last_name: "",
     phone: "",
@@ -66,7 +68,7 @@ export default function NewUserPage() {
     e.preventDefault();
     setError(null);
 
-    if (!form.email.trim()) { setError("Введите email"); return; }
+    if (!form.email.trim() && !form.username.trim()) { setError("Введите email или имя пользователя"); return; }
     if (!form.password || form.password.length < 6) { setError("Пароль должен быть не менее 6 символов"); return; }
     if (!form.role) { setError("Выберите роль"); return; }
 
@@ -76,13 +78,15 @@ export default function NewUserPage() {
       await apiFetch("/api/v1/common/users/", {
         method: "POST",
         body: JSON.stringify({
-          email: form.email.trim().toLowerCase(),
+          email: form.email.trim().toLowerCase() || undefined,
+          username: form.username.trim() || undefined,
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
           phone: form.phone.trim() || undefined,
           organization_name: form.organization_name.trim(),
           role: form.role,
           password: form.password,
+          user_type: "repair_works",
         }),
       });
       router.replace("/dashboard/users");
@@ -111,8 +115,21 @@ export default function NewUserPage() {
       <form onSubmit={handleSubmit} noValidate>
         <div className="bg-white border border-[#D9E0E8] rounded-[10px] p-6 space-y-4">
 
+          {/* Username */}
+          <FieldRow label="Имя пользователя (логин)" required hint="Используется для входа если нет email">
+            <input
+              type="text"
+              className={INPUT}
+              placeholder="ivan.ivanov"
+              value={form.username}
+              onChange={(e) => set("username", e.target.value)}
+              disabled={submitting}
+              autoComplete="off"
+            />
+          </FieldRow>
+
           {/* Email */}
-          <FieldRow label="Email" required>
+          <FieldRow label="Email" hint="Необязательно — если указан, можно войти по email">
             <input
               type="email"
               className={INPUT}

@@ -50,7 +50,7 @@ export default function UsersPage() {
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
   useEffect(() => {
-    apiFetch<User[]>("/api/v1/common/users/")
+    apiFetch<User[]>("/api/v1/common/users/?user_type=repair_works")
       .then(setUsers)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Ошибка загрузки"))
       .finally(() => setLoading(false));
@@ -189,7 +189,7 @@ export default function UsersPage() {
                       <div className="flex items-center gap-2 justify-end">
                         <Link
                           href={`/dashboard/users/${user.id}/edit`}
-                          className="h-7 px-3 rounded-[5px] border border-[#D9E0E8] text-xs text-[#344054] hover:bg-[#F7F9FC] transition-colors"
+                          className="h-7 px-3 rounded-[5px] border border-[#D9E0E8] text-xs text-[#344054] hover:bg-[#F7F9FC] transition-colors inline-flex items-center"
                         >
                           Изменить
                         </Link>
@@ -197,11 +197,7 @@ export default function UsersPage() {
                           type="button"
                           onClick={() => toggleActive(user)}
                           disabled={actionLoading === user.id}
-                          className={`h-7 px-3 rounded-[5px] border text-xs transition-colors disabled:opacity-50 ${
-                            user.is_active
-                              ? "border-[#D92D20]/40 text-[#D92D20] hover:bg-[#FFF2F2]"
-                              : "border-[#027A48]/40 text-[#027A48] hover:bg-[#E6F6EF]"
-                          }`}
+                          className="h-7 px-3 rounded-[5px] border border-[#D9E0E8] text-xs text-[#344054] hover:bg-[#F7F9FC] transition-colors disabled:opacity-50"
                         >
                           {actionLoading === user.id ? "…" : user.is_active ? "Деактивировать" : "Активировать"}
                         </button>

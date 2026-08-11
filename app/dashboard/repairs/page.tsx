@@ -458,14 +458,12 @@ export default function RepairsListPage() {
           ) : (
             <span />
           )}
-          {currentUser?.role !== "admin" && (
-            <Link
-              href="/dashboard/repairs/new"
-              className="inline-flex items-center gap-2 h-9 px-4 rounded-[6px] bg-[#2F80C9] text-white text-sm font-medium hover:bg-[#1E6BAD] transition-colors"
-            >
-              <PlusIcon /> Создать заявку
-            </Link>
-          )}
+          <Link
+            href="/dashboard/repairs/new"
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-[6px] bg-[#2F80C9] text-white text-sm font-medium hover:bg-[#1E6BAD] transition-colors"
+          >
+            <PlusIcon /> Создать заявку
+          </Link>
         </div>
 
         {/* Loading */}
