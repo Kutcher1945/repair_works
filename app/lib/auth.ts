@@ -16,6 +16,7 @@ export type User = {
   organization_name?: string;
   date_joined?: string;
   is_active?: boolean;
+  is_superuser?: boolean;
 };
 
 export function getTokens(): AuthTokens | null {

@@ -14,6 +14,7 @@ type FormState = {
   phone: string;
   organization_name: string;
   role: "employee" | "admin" | "student";
+  is_superuser: boolean;
   password: string;
 };
 
@@ -51,6 +52,7 @@ export default function NewUserPage() {
     phone: "",
     organization_name: "",
     role: "employee",
+    is_superuser: false,
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -85,6 +87,7 @@ export default function NewUserPage() {
           phone: form.phone.trim() || undefined,
           organization_name: form.organization_name.trim(),
           role: form.role,
+          is_superuser: form.is_superuser,
           password: form.password,
           user_type: "repair_works",
         }),
@@ -188,6 +191,21 @@ export default function NewUserPage() {
               disabled={submitting}
             />
           </FieldRow>
+
+          {/* Superuser checkbox */}
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.is_superuser}
+              onChange={(e) => set("is_superuser", e.target.checked)}
+              disabled={submitting}
+              className="mt-0.5 w-4 h-4 rounded border-[#D9E0E8] accent-[#12345B] cursor-pointer"
+            />
+            <div>
+              <span className="text-sm font-medium text-[#344054]">Суперпользователь</span>
+              <p className="text-xs text-[#98A2B3] mt-0.5">Полный доступ ко всем функциям системы</p>
+            </div>
+          </label>
 
           {/* Role */}
           <FieldRow label="Роль" required>

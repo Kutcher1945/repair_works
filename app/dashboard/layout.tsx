@@ -160,13 +160,13 @@ function LogoMark() {
 /* ── Nav config ───────────────────────────────────────────────────── */
 
 const NAV_ITEMS = [
-  { href: "/dashboard",          label: "Главная",          icon: HomeIcon,         exact: true,  adminOnly: false },
-  { href: "/dashboard/repairs",  label: "Заявки",           icon: ConstructionIcon, exact: false, adminOnly: false },
-  { href: "/dashboard/map",      label: "Карта",            icon: MapIcon,          exact: false, adminOnly: false },
-  { href: "/dashboard/reports",  label: "Отчёты",           icon: ChartIcon,        exact: false, adminOnly: false },
-  { href: "/dashboard/users",    label: "Пользователи",     icon: UsersIcon,        exact: false, adminOnly: true  },
-  { href: "/dashboard/profile",  label: "Личный кабинет",   icon: ProfileIcon,      exact: false, adminOnly: false },
-  { href: "/dashboard/settings", label: "Настройки",        icon: GearIcon,         exact: false, adminOnly: false },
+  { href: "/dashboard",          label: "Главная",          icon: HomeIcon,         exact: true,  superuserOnly: false },
+  { href: "/dashboard/repairs",  label: "Заявки",           icon: ConstructionIcon, exact: false, superuserOnly: false },
+  { href: "/dashboard/map",      label: "Карта",            icon: MapIcon,          exact: false, superuserOnly: false },
+  { href: "/dashboard/reports",  label: "Отчёты",           icon: ChartIcon,        exact: false, superuserOnly: false },
+  { href: "/dashboard/users",    label: "Пользователи",     icon: UsersIcon,        exact: false, superuserOnly: true  },
+  { href: "/dashboard/profile",  label: "Личный кабинет",   icon: ProfileIcon,      exact: false, superuserOnly: false },
+  { href: "/dashboard/settings", label: "Настройки",        icon: GearIcon,         exact: false, superuserOnly: false },
 ];
 
 const EXTRA_LABELS: Record<string, string> = {
@@ -492,7 +492,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
           )}
           <ul className="space-y-2" style={{ padding: "0 8px" }}>
-            {NAV_ITEMS.filter(({ adminOnly }) => !adminOnly || user.role === "admin").map(({ href, label, icon: Icon, exact }, idx) => {
+            {NAV_ITEMS.filter(({ superuserOnly }) => !superuserOnly || user.is_superuser).map(({ href, label, icon: Icon, exact }, idx) => {
               const isActive = exact ? pathname === href : pathname.startsWith(href);
               const num = idx + 1;
               return (
